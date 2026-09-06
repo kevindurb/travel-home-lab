@@ -1,19 +1,26 @@
-{$HOST}/kiwix {
-  reverse_proxy kiwix:8080
-}
+{$HOST} {
+  redir /jellyfin /jellyfin/ 308
+  redir /gatus /gatus/ 308
+  redir /glances /glances/ 308
+  redir /kiwix /kiwix/ 308
 
-{$HOST}/jellyfin {
-  reverse_proxy jellyfin:8096
-}
+  handle_path /jellyfin/* {
+    reverse_proxy jellyfin:8096
+  }
 
-{$HOST}/whoami {
-  reverse_proxy whoami:80
-}
+  handle_path /glances/* {
+    reverse_proxy glances:61208
+  }
 
-{$HOST}/gatus {
-  reverse_proxy gatus:8080
-}
+  handle_path /whoami/* {
+    reverse_proxy whoami:80
+  }
 
-{$HOST}/glances {
-  reverse_proxy glances:61208
+  handle_path /kiwix/* {
+    reverse_proxy kiwix:8088
+  }
+
+  handle {
+    reverse_proxy glances:61208
+  }
 }

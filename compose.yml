@@ -3,7 +3,7 @@ services:
   kiwix:
     container_name: kiwix
     image: ghcr.io/kiwix/kiwix-serve
-    command: '*.zim'
+    command: '--urlRoot=/kiwix/ *.zim'
     restart: unless-stopped
     volumes:
       - '${STORAGE_PATH}/zim:/data:z'
