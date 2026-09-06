@@ -1,6 +1,57 @@
 ---
 services:
   kiwix:
+    container_name: kiwix
     image: ghcr.io/kiwix/kiwix-serve
+    command: '*.zim'
+    restart: unless-stopped
     volumes:
-      - /mnt/storage/zim:/data
+      - '${STORAGE_PATH}/zim:/data:z'
+  jellyfin:
+    container_name: jellyfin
+    image: docker.io/jellyfin/jellyfin
+    restart: unless-stopped
+    volumes:
+      - '${STORAGE_PATH}/media:/media:z'
+      - jellyfin_config:/config
+  whoami:
+    container_name: whoami
+    image: docker.io/traefik/whoami
+    restart: unless-stopped
+  gatus:
+    container_name: gatus
+    image: ghcr.io/twin/gatus
+    restart: unless-stopped
+    environment:
+      GATUS_LOG_LEVEL: DEBUG
+      GATUS_CONFIG_PATH: /config
+    volumes:
+      - gatus_data:/data
+      - ./gatus/config.yml:/config/config.yaml:z
+  glances:
+    container_name: glances
+    image: docker.io/nicolargo/glances
+    pid: host
+    environment:
+      GLANCES_OPT: -w
+    volumes:
+      - /run/user/1000/podman/podman.sock:/run/user/1000/podman/podman.sock:roz
+      - /etc/os-release:/etc/os-release:roz
+  caddy:
+    container_name: caddy
+    image: caddy
+    restart: unless-stopped
+    ports:
+      - '${PORT}:443'
+    environment:
+      HOST: '${HOST}'
+    volumes:
+      - ./caddy:/etc/caddy:z
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  jellyfin_config:
+  caddy_data:
+  caddy_config:
+  gatus_data:

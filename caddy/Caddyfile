@@ -1,0 +1,19 @@
+kiwix.{$HOST} {
+  reverse_proxy kiwix:8080
+}
+
+jellyfin.{$HOST} {
+  reverse_proxy jellyfin:8096
+}
+
+whoami.{$HOST} {
+  reverse_proxy whoami:80
+}
+
+gatus.{$HOST} {
+  reverse_proxy gatus:8080
+}
+
+glances.{$HOST} {
+  reverse_proxy glances:61208
+}

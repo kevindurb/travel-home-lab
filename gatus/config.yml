@@ -1,0 +1,47 @@
+---
+storage:
+  type: sqlite
+  path: /data/data.db
+
+endpoints:
+  - name: google
+    url: https://google.com
+    group: external
+    conditions: ['[STATUS] == 200']
+
+  - name: github
+    url: https://github.com
+    group: external
+    conditions: ['[STATUS] == 200']
+
+  - name: firefox portal
+    url: http://detectportal.firefox.com/success.txt
+    group: external
+    conditions: ['[STATUS] == 200']
+
+  - name: travel-router
+    url: https://10.42.0.1
+    group: networking
+    client: { insecure: true }
+    conditions: ['[STATUS] == 200']
+
+  - name: kiwix
+    url: http://kiwix:8080
+    group: apps
+    conditions: ['[STATUS] == 200']
+
+  - name: jellyfin
+    url: http://jellyfin:8096
+    group: apps
+    conditions: ['[STATUS] == 200']
+
+  - name: whoami
+    url: http://whoami:80
+    group: apps
+    conditions: ['[STATUS] == 200']
+
+  - name: glances
+    url: http://glances:61208
+    group: apps
+    conditions: ['[STATUS] == 200']
+
