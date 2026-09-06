@@ -1,0 +1,6 @@
+---
+services:
+  kiwix:
+    image: ghcr.io/kiwix/kiwix-serve
+    volumes:
+      - /mnt/storage/zim:/data
