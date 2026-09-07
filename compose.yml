@@ -55,7 +55,7 @@ services:
     restart: unless-stopped
     volumes:
       - dozzle_data:/data
-      - /run/user/1000/podman/podman.sock:/run/user/1000/podman/podman.sock:roz
+      - /run/user/1000/podman/podman.sock:/var/run/docker.sock:roz
 
 volumes:
   jellyfin_config:
