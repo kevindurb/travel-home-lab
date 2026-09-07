@@ -45,3 +45,7 @@ endpoints:
     group: apps
     conditions: ['[STATUS] == 200']
 
+  - name: dozzle
+    url: http://dozzle:8080
+    group: apps
+    conditions: ['[STATUS] == 200']
