@@ -1,19 +1,24 @@
 kiwix.{$HOST} {
+  tls internal
   reverse_proxy kiwix:8080
 }
 
 jellyfin.{$HOST} {
+  tls internal
   reverse_proxy jellyfin:8096
 }
 
 whoami.{$HOST} {
+  tls internal
   reverse_proxy whoami:80
 }
 
 gatus.{$HOST} {
+  tls internal
   reverse_proxy gatus:8080
 }
 
 glances.{$HOST} {
+  tls internal
   reverse_proxy glances:61208
 }
