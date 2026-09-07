@@ -22,3 +22,8 @@ glances.{$HOST} {
   tls internal
   reverse_proxy glances:61208
 }
+
+dozzle.{$HOST} {
+  tls internal
+  reverse_proxy dozzle:8080
+}
