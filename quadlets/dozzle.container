@@ -9,7 +9,9 @@ Image=docker.io/amir20/dozzle:latest
 ContainerName=dozzle
 Network=travel-home-lab.network
 Volume=dozzle_data.volume:/data
-Volume=%t/podman/podman.sock:/var/run/docker.sock:roz
+# No mode suffix — see glances.container: the compose ":roz" is not valid
+# podman syntax and compose dropped it.
+Volume=%t/podman/podman.sock:/var/run/docker.sock
 AutoUpdate=registry
 
 [Service]

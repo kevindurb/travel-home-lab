@@ -65,6 +65,7 @@ on the Pi's 5.4.2) before being written down.
 | `PublishPort=443:443` | ✅ → `--publish 443:443` |
 | `restart:` needs explicit `[Service] Restart=` | ✅ otherwise systemd defaults to `no` |
 | Podman emits `Type=notify`, `KillMode=mixed`, `ExecStop=podman rm -v -f -i` | automatic |
+| **`-v …:roz`** (invalid 3-token mode from `compose.yml`) | ❌ `podman run` exits 125 `invalid option type "roz"`; compose silently drops it — use no mode, or `ro,z` |
 
 **The autostart model, plainly:** the generator reads `[Install] WantedBy=default.target`
 from the `.container` file and writes the service plus a symlink into
@@ -402,8 +403,10 @@ ContainerName=glances
 Network=travel-home-lab.network
 Environment=GLANCES_OPT=-w
 PodmanArgs=--pid=host
-Volume=%t/podman/podman.sock:/run/user/1000/podman/podman.sock:roz
-Volume=/etc/os-release:/etc/os-release:roz
+# %t expands to /run/user/1000. No mode suffix: ":roz" is not valid podman
+# syntax and compose silently dropped it (§6.5 notes).
+Volume=%t/podman/podman.sock:/run/user/1000/podman/podman.sock
+Volume=/etc/os-release:/etc/os-release
 AutoUpdate=registry
 
 [Service]
@@ -426,7 +429,7 @@ Image=docker.io/amir20/dozzle:latest
 ContainerName=dozzle
 Network=travel-home-lab.network
 Volume=dozzle_data.volume:/data
-Volume=%t/podman/podman.sock:/var/run/docker.sock:roz
+Volume=%t/podman/podman.sock:/var/run/docker.sock
 AutoUpdate=registry
 
 [Service]
@@ -443,6 +446,13 @@ WantedBy=default.target
 - `%t/podman/podman.sock` replaces the hardcoded `/run/user/1000/podman/podman.sock`.
   Verified to expand to `/run/user/1000`. Same file, no hardcoded uid.
 - `:z` (SELinux relabel) is **a no-op** — the Pi has no SELinux. Kept for parity.
+- **`:roz` does not exist.** The compose file used `…podman.sock:/var/run/docker.sock:roz`,
+  but podman's `-v` takes *comma-separated* options, so `roz` is a single invalid
+  token: `podman run` exits 125 with `invalid option type "roz"`. Compose masked
+  this by silently dropping the token (its resolved config shows those binds with
+  no mode at all), so under compose they were plain **rw** binds. The quadlets
+  therefore omit the mode. This is what broke the first quadlet start of
+  `glances` and `dozzle` on the Pi — neither had ever actually run with `roz`.
 - `glances` and `dozzle` gain an explicit `Requires=podman.socket`; today they
   depend on it implicitly being up.
 - `AutoUpdate=registry` is inert until `podman-auto-update.timer` is enabled — see §9.
@@ -660,3 +670,7 @@ last — it's your rollback path.
 11. **Volume reuse depends on the names matching exactly.** `VolumeName=` must be
     `travel-home-lab_<name>`; a typo silently creates a *new empty* volume and
     Jellyfin would come up unconfigured. Verification step 3b exists to catch this.
+12. **`roz` is not a valid mode and only ever worked by accident** (§6.5). It cost
+    one failed start of `glances` and `dozzle` during the actual migration
+    (2026-10-15); the other five services came up first try. Any future
+    hand-written volume line should use `ro`/`rw`, or `ro,z`, but never `roz`.

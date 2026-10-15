@@ -11,8 +11,11 @@ Network=travel-home-lab.network
 Environment=GLANCES_OPT=-w
 PodmanArgs=--pid=host
 # %t expands to /run/user/1000.
-Volume=%t/podman/podman.sock:/run/user/1000/podman/podman.sock:roz
-Volume=/etc/os-release:/etc/os-release:roz
+# No mode suffix: podman 5.4.2 rejects the compose file's ":roz" (mount options
+# must be comma-separated — "ro,z"), and compose silently dropped it, so these
+# were plain rw binds.
+Volume=%t/podman/podman.sock:/run/user/1000/podman/podman.sock
+Volume=/etc/os-release:/etc/os-release
 AutoUpdate=registry
 
 [Service]
