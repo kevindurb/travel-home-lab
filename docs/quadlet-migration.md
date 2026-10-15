@@ -21,6 +21,11 @@ Three decisions up front:
 | Topology | one `.container` per service on a shared `.network` | `Caddyfile` and `gatus/config.yml` keep working unchanged (see §5) |
 | Install | absolute **symlinks** + `daemon-reload` | repo stays the single source of truth, no copy drift (see §7) |
 
+**Existing volumes are reused in place** — no data migration, nothing copied.
+Quadlet emits `podman volume create --ignore`, so pointing at the current
+compose-named volumes preserves Jellyfin's library state, gatus history, and
+Caddy's internal CA. See §6.3.
+
 ---
 
 ## 2. Why quadlets
@@ -55,6 +60,7 @@ on the Pi's 5.4.2) before being written down.
 | `%h` in `Volume=` | ✅ expands to `/home/kevindurb` at runtime |
 | `%t` in `Volume=` | ✅ expands to `/run/user/1000` |
 | `.volume` → `Volume=x.volume:/p` | ✅ → `-v <VolumeName>:/p` |
+| **`.volume` naming an existing volume** | ✅ **reused, data intact** — generates `podman volume create --ignore <name>` |
 | `.network` → `Network=x.network` | ✅ → `--network x`, deps auto-wired |
 | `PublishPort=443:443` | ✅ → `--publish 443:443` |
 | `restart:` needs explicit `[Service] Restart=` | ✅ otherwise systemd defaults to `no` |
@@ -94,7 +100,7 @@ mounted before the user manager starts.
 | named volume `foo` | `foo.volume` with `VolumeName=` |
 | implicit default network | `.network` unit + `Network=` |
 | `depends_on` | `[Unit] After=` / `Wants=` |
-| `${STORAGE_PATH}` interpolation | ❌ **not supported** — paths must be literal (§6.3) |
+| `${STORAGE_PATH}` interpolation | ❌ **not supported** — paths must be literal (§6.4) |
 
 ---
 
@@ -142,7 +148,7 @@ travel-home-lab/
 ├── caddy/Caddyfile             # unchanged
 ├── gatus/config.yml            # unchanged
 ├── compose.yml                 # keep until migration is proven, then delete
-└── sample.env                  # obsolete after migration (§6.3)
+└── sample.env                  # obsolete after migration (§6.4)
 ```
 
 ### 6.2 Network and volumes
@@ -163,9 +169,79 @@ VolumeName=travel-home-lab_caddy_data
 ```
 
 ...and the same for `caddy_config`, `jellyfin_config`, `gatus_data`, `dozzle_data`
-(`travel-home-lab_<name>`).
+(`travel-home-lab_<name>`). These names deliberately match the volumes that already
+exist, which makes the migration a pure reuse — see §6.3.
 
-### 6.3 Why `%h/travel-home-lab/...` appears in the paths
+### 6.3 Volumes: reuse the existing ones, don't migrate
+
+**No volume migration is needed.** Verified end-to-end rather than assumed.
+
+The mechanism: quadlet generates
+
+```
+ExecStart=/usr/bin/podman volume create --ignore <VolumeName>
+```
+
+`--ignore` means *"Don't fail if volume already exists"* (confirmed in
+`podman volume create --help` on the Pi's 5.4.2). So a `.volume` unit naming a
+volume that already exists is a **no-op that reuses it with data intact**.
+
+Tested on the Pi: created a volume, seeded a canary file, `daemon-reload`,
+started the generated volume unit, started a container against it — **canary
+readable from inside the container**. Nothing was recreated.
+
+So `VolumeName=` just needs to match the **existing compose-prefixed names**:
+
+| `.volume` file | `VolumeName=` | Outcome |
+|---|---|---|
+| `caddy_data.volume` | `travel-home-lab_caddy_data` | reused |
+| `caddy_config.volume` | `travel-home-lab_caddy_config` | reused |
+| `jellyfin_config.volume` | `travel-home-lab_jellyfin_config` | reused |
+| `gatus_data.volume` | `travel-home-lab_gatus_data` | reused |
+| `dozzle_data.volume` | `travel-home-lab_dozzle_data` | reused |
+
+#### What's actually at stake
+
+| Volume | Size | Contents |
+|---|---|---|
+| `jellyfin_config` | **28 MB** | `config/`, `data/` (playlists, `SQLiteBackups`, `ScheduledTasks`), `metadata/library`, `plugins/`, `root/` — library setup, users, watched state |
+| `gatus_data` | **4.3 MB** | `data.db` + `-shm` + a 4 MB `-wal` (uptime history) |
+| `caddy_data` | 296 KB | internal PKI — `instance.uuid` plus leaf certs for all six subdomains |
+| `caddy_config` | 12 KB | Caddy autosave config |
+| `dozzle_data` | 4 KB | empty |
+
+Losing these means re-adding the Jellyfin library and re-importing it, and Caddy
+re-issuing its internal CA so every client must re-trust it. Reuse beats migrate.
+
+#### ⚠️ Never run `podman compose down -v`
+
+The volumes carry compose provenance labels:
+
+```
+com.docker.compose.project=travel-home-lab
+com.docker.compose.version=2.26.1
+com.docker.compose.volume=jellyfin_config
+```
+
+`-v` deletes volumes belonging to the compose project — so `podman compose down -v`
+**would destroy all five**, including Jellyfin's 28 MB of state. Plain
+`podman compose down` is safe and is what §8 specifies.
+
+#### Notes
+
+- These volumes live on the **Pi's SD card**
+  (`~/.local/share/containers/storage/volumes/`), *not* the NVMe. The storage
+  migration didn't touch them and this one won't either. ~32 MB total.
+- `caddy_data` holds certs for **both** `*.travel-lab.local` and `*.travel-lab.lan`.
+  The `.local` set is stale from an earlier `HOST` value (see the git history:
+  "back to subdomains"). Caddy issues on demand, so it's harmless clutter.
+- There are also ~6 orphaned hex-named volumes from earlier compose churn, not
+  referenced by this stack. `podman volume prune` clears them once you're off
+  compose — but only after you've stopped needing compose.
+- Renaming a volume would be a data copy (`podman volume create` + `rsync` between
+  mountpoints). Not recommended here.
+
+### 6.4 Why `%h/travel-home-lab/...` appears in the paths
 
 Two verified constraints force this:
 
@@ -180,7 +256,7 @@ hardcoded. `%h`/`%t` are expanded by **systemd at runtime**, verified.
 > `~/travel-home-lab` on the Pi.** `make install` checks this and warns if not.
 > This is the price of symlinks over templating, and it's the one real wart here.
 
-### 6.4 Service quadlets
+### 6.5 Service quadlets
 
 ```ini
 # quadlets/kiwix.container
@@ -421,7 +497,9 @@ Assumes `/mnt/storage` already mounts (done) and the repo is at `~/travel-home-l
 ```bash
 cd ~/travel-home-lab
 
-# 1. Tear down compose (volumes persist; data is safe)
+# 1. Tear down compose
+#    NOTE: plain `down`, NOT `down -v`. The -v flag would delete all five
+#    volumes (they carry compose project labels) including 28 MB of Jellyfin state.
 podman compose down
 
 # 2. Install quadlets
@@ -433,6 +511,10 @@ systemctl --user list-unit-files | grep -E 'kiwix|jellyfin|caddy|gatus|dozzle|gl
 systemctl --user cat kiwix.service        # confirm -v /mnt/storage/zim:/data
 systemctl --user cat caddy.service        # confirm --publish 443:443, %h expanded
 
+# 3b. Confirm the volumes are being REUSED, not recreated — each volume unit
+#     should read `podman volume create --ignore <existing name>`
+systemctl --user cat jellyfin_config-volume.service
+
 # 4. Start
 systemctl --user start kiwix jellyfin caddy gatus dozzle glances whoami
 
@@ -441,6 +523,13 @@ podman ps
 ```
 
 Step 3 matters: it catches path/expansion mistakes without touching a running stack.
+Step 3b is the cheap guard against accidentally pointing at a *new* volume name —
+if `--ignore` is absent or the name is wrong, stop before Jellyfin starts with an
+empty config.
+
+**Volumes are reused in place** (§6.3) — nothing is copied or moved, and Jellyfin's
+library setup, gatus history, and Caddy's internal CA all carry over. Expect
+Jellyfin to come up already configured.
 
 ---
 
@@ -470,18 +559,25 @@ make uninstall          # removes symlinks + daemon-reload
 podman compose up -d    # back to the old stack
 ```
 
-Volumes are shared by name via `VolumeName=`, so both systems see the same data.
-**Do not run compose and quadlets simultaneously** — port 443 would collide and
-container names would clash.
+Volumes are shared by name via `VolumeName=`, so both systems see the same data —
+rollback loses nothing, because the quadlets never moved or copied it.
+
+Two cautions:
+
+- **Do not run compose and quadlets simultaneously** — port 443 would collide and
+  container names would clash.
+- **Never `podman compose down -v`**, at any point, including during rollback. The
+  volumes are labelled with the compose project, so `-v` deletes all five (§6.3).
 
 After migration is proven, `podman network rm travel-home-lab_default` reclaims the
-orphaned compose network, and `compose.yml` + `sample.env` can be deleted.
+orphaned compose network, and `compose.yml` + `sample.env` can be deleted. Do that
+last — it's your rollback path.
 
 ---
 
 ## 11. Risks and open questions
 
-1. **Repo path is hardcoded** (§6.3). Repo must be at `~/travel-home-lab`. Called
+1. **Repo path is hardcoded** (§6.4). Repo must be at `~/travel-home-lab`. Called
    out by `make install`.
 2. **Empty-mount hazard.** The fstab entry has `nofail`, and USB enumeration can
    lag `local-fs.target`. If the drive is missing, `nofail` lets boot continue and
@@ -508,3 +604,11 @@ orphaned compose network, and `compose.yml` + `sample.env` can be deleted.
    certificates issued during that window may have odd validity. Cosmetic, but
    worth knowing if you get TLS warnings.
 9. **`README.md` is empty** (0 bytes). Worth adding a short pointer to this doc.
+10. **`podman compose down -v` is destructive here.** All five volumes carry
+    `com.docker.compose.project=travel-home-lab` labels, so `-v` would delete them
+    — 28 MB of Jellyfin state, gatus history, and Caddy's internal CA. Plain
+    `down` is safe. Same applies to `podman volume prune` while compose configs
+    still exist. Worth a warning in the README (§6.3).
+11. **Volume reuse depends on the names matching exactly.** `VolumeName=` must be
+    `travel-home-lab_<name>`; a typo silently creates a *new empty* volume and
+    Jellyfin would come up unconfigured. Verification step 3b exists to catch this.
