@@ -265,6 +265,11 @@ com.docker.compose.volume=jellyfin_config
   references, which while the stack is stopped means all five of ours. See §11.10.
 - Renaming a volume would be a data copy (`podman volume create` + `rsync` between
   mountpoints). Not recommended here.
+- After the migration, one **anonymous** hex-named volume is expected and correct:
+  The Jellyfin image declares `VOLUME /cache`, and only `/config` is mounted
+  explicitly, so `/cache` gets an anonymous volume. It is transient transcode cache
+  and is cleaned up by the generated `ExecStop=podman rm -v -f`, so `podman volume
+  prune` will not remove it while Jellyfin runs, and it disappears on stop.
 
 ### 6.4 Why `%h/travel-home-lab/...` appears in the paths
 

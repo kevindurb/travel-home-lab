@@ -49,6 +49,10 @@ Five named volumes hold state that is painful to recreate:
 - **Do not run `podman volume prune`** unless the quadlet containers are running
   and holding the volumes. Prune removes any volume not referenced by a *running*
   container — including these five whenever the stack is stopped.
+- One extra **anonymous** hex-named volume is normal: the Jellyfin image declares
+  `VOLUME /cache`, and since only `/config` is mounted explicitly, `/cache` gets an
+  anonymous volume. It is throwaway transcoding cache and is removed automatically
+  when the container stops (`podman rm -v`).
 - **Do not run compose and the quadlets at the same time.** Port 443 and the
   container names would collide.
 
