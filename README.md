@@ -55,8 +55,13 @@ Five named volumes hold state that is painful to recreate:
 ## Rollback
 
 ```bash
-make uninstall     # remove symlinks + daemon-reload
+make uninstall                                        # remove symlinks + daemon-reload
+git show 2b28155:compose.yml > compose.yml            # restore the compose stack
+git show 2b28155:sample.env  > sample.env
 podman compose up -d
 ```
 
+`compose.yml` was deleted on 2026-10-15 once the quadlets were proven across a
+cold boot; it and `sample.env` remain in git history at `2b28155` and earlier.
 The quadlets never copy or move the volumes, so both systems see the same data.
+Note that `.env` (untracked) is still on the Pi if you need the old values.

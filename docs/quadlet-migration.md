@@ -1,6 +1,7 @@
 # Converting travel-home-lab to Podman Quadlets
 
-**Status:** plan — reviewed, not yet applied
+**Status:** applied 2026-10-15 — deployed on `travel-lab` and verified across a cold boot
+(see §9). Compose configs removed once the reboot check passed.
 **Target:** `travel-lab` (Raspberry Pi 4, aarch64) — Podman **5.4.2**, rootless user
 `kevindurb` (uid 1000), `Linger=yes`
 **Date:** 2026-10-15
