@@ -1,0 +1,22 @@
+[Unit]
+Description=Caddy reverse proxy (internal TLS)
+
+[Container]
+Image=docker.io/library/caddy:latest
+ContainerName=caddy
+Network=travel-home-lab.network
+# Matches the Pi's .env (HOST=travel-lab.lan); Caddyfile uses {$HOST}.
+Environment=HOST=travel-lab.lan
+# Matches compose's PORT=0.0.0.0:443.
+PublishPort=443:443
+# %h is expanded by systemd (repo must be at ~/travel-home-lab).
+Volume=%h/travel-home-lab/caddy:/etc/caddy:z
+Volume=caddy_data.volume:/data
+Volume=caddy_config.volume:/config
+AutoUpdate=registry
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

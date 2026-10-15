@@ -1,0 +1,18 @@
+[Unit]
+Description=Jellyfin media server
+
+[Container]
+Image=docker.io/jellyfin/jellyfin:latest
+ContainerName=jellyfin
+Network=travel-home-lab.network
+Volume=/mnt/storage/media:/media:z
+Volume=jellyfin_config.volume:/config
+AutoUpdate=registry
+
+[Service]
+Restart=always
+# Refuse to start on an empty /mnt/storage. See docs/quadlet-migration.md §11.2.
+ExecStartPre=/usr/bin/mountpoint -q /mnt/storage
+
+[Install]
+WantedBy=default.target

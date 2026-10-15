@@ -1,0 +1,18 @@
+[Unit]
+Description=Gatus uptime dashboard
+
+[Container]
+Image=ghcr.io/twin/gatus:latest
+ContainerName=gatus
+Network=travel-home-lab.network
+Environment=GATUS_LOG_LEVEL=DEBUG
+Environment=GATUS_CONFIG_PATH=/config
+Volume=gatus_data.volume:/data
+Volume=%h/travel-home-lab/gatus/config.yml:/config/config.yaml:z
+AutoUpdate=registry
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

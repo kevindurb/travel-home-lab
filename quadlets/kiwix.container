@@ -1,0 +1,19 @@
+[Unit]
+Description=Kiwix offline ZIM server
+
+[Container]
+Image=ghcr.io/kiwix/kiwix-serve:latest
+ContainerName=kiwix
+# Faithful translation of compose's `command: '*.zim'` (overrides CMD).
+Exec=*.zim
+Network=travel-home-lab.network
+Volume=/mnt/storage/zim:/data:z
+AutoUpdate=registry
+
+[Service]
+Restart=always
+# Refuse to start on an empty /mnt/storage. See docs/quadlet-migration.md §11.2.
+ExecStartPre=/usr/bin/mountpoint -q /mnt/storage
+
+[Install]
+WantedBy=default.target

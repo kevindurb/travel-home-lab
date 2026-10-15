@@ -1,0 +1,4 @@
+# Shared network for the stack. aardvark-dns resolves container names on it,
+# so caddy/Caddyfile and gatus/config.yml keep working unchanged.
+[Network]
+NetworkName=travel-home-lab

@@ -1,0 +1,23 @@
+[Unit]
+Description=Glances system monitor (web mode)
+# Needed to report container state.
+Requires=podman.socket
+After=podman.socket
+
+[Container]
+Image=docker.io/nicolargo/glances:latest
+ContainerName=glances
+Network=travel-home-lab.network
+Environment=GLANCES_OPT=-w
+PodmanArgs=--pid=host
+# %t expands to /run/user/1000.
+Volume=%t/podman/podman.sock:/run/user/1000/podman/podman.sock:roz
+Volume=/etc/os-release:/etc/os-release:roz
+AutoUpdate=registry
+
+[Service]
+# compose had no restart policy; adding one is a deliberate behaviour change.
+Restart=always
+
+[Install]
+WantedBy=default.target

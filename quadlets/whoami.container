@@ -1,0 +1,14 @@
+[Unit]
+Description=whoami test endpoint
+
+[Container]
+Image=docker.io/traefik/whoami:latest
+ContainerName=whoami
+Network=travel-home-lab.network
+AutoUpdate=registry
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,19 @@
+[Unit]
+Description=Dozzle container log viewer
+# Needed to read container logs.
+Requires=podman.socket
+After=podman.socket
+
+[Container]
+Image=docker.io/amir20/dozzle:latest
+ContainerName=dozzle
+Network=travel-home-lab.network
+Volume=dozzle_data.volume:/data
+Volume=%t/podman/podman.sock:/var/run/docker.sock:roz
+AutoUpdate=registry
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

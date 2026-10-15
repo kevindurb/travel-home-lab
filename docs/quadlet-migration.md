@@ -82,6 +82,27 @@ Also confirmed on the Pi: guardrail ordering is already in our favour.
 after `basic.target` (which pulls in `local-fs.target`), so `/mnt/storage` is
 mounted before the user manager starts.
 
+### Confirmed against the live Pi (2026-10-15)
+
+Read-only recon on `travel-lab.beaver-cloud.ts.net` before writing any unit. Every
+value the plan had to hardcode was checked against the running config:
+
+| Source | Value | Used as |
+|---|---|---|
+| `.env` `STORAGE_PATH` | `/mnt/storage` | literal `Volume=` source |
+| `.env` `HOST` | `travel-lab.lan` | `Environment=HOST=` in `caddy.container` |
+| `.env` `PORT` | `0.0.0.0:443` | `PublishPort=443:443` |
+| `podman compose config` | `published: "443"`, `host_ip: 0.0.0.0` | confirms the above |
+| repo location | `/home/kevindurb/travel-home-lab` | the `%h/travel-home-lab/...` paths |
+| `/etc/sysctl.d/99-podman-ports.conf` | `net.ipv4.ip_unprivileged_port_start=80` | rootless Caddy can bind `:443` |
+| `podman volume ls` | the five `travel-home-lab_*` names | every `VolumeName=` |
+| `podman ps -a` | all 7 containers `Exited` | prune hazard, §11.10 |
+| `findmnt /mnt/storage` | ext4 on `/dev/sda1`, 476 G, 80 G free | §9 check 4 |
+| `ls /mnt/storage/zim` | 7 `.zim` archives | §11.3 baseline |
+
+`podman.socket` is active, `Linger=yes`, and `/usr/bin/mountpoint` exists (so the
+`ExecStartPre` guard works). `~/.config/containers/systemd/` exists and is empty.
+
 ---
 
 ## 4. compose → quadlet mapping
@@ -235,9 +256,11 @@ com.docker.compose.volume=jellyfin_config
 - `caddy_data` holds certs for **both** `*.travel-lab.local` and `*.travel-lab.lan`.
   The `.local` set is stale from an earlier `HOST` value (see the git history:
   "back to subdomains"). Caddy issues on demand, so it's harmless clutter.
-- There are also ~6 orphaned hex-named volumes from earlier compose churn, not
-  referenced by this stack. `podman volume prune` clears them once you're off
-  compose — but only after you've stopped needing compose.
+- There are also 7 orphaned hex-named volumes from earlier compose churn, not
+  referenced by this stack. `podman volume prune` clears them — but **only after
+  the quadlet containers are running and holding the five real volumes**. Prune
+  does not care about compose configs; it deletes anything no *running* container
+  references, which while the stack is stopped means all five of ours. See §11.10.
 - Renaming a volume would be a data copy (`podman volume create` + `rsync` between
   mountpoints). Not recommended here.
 
@@ -253,8 +276,9 @@ So config paths are written as `%h/travel-home-lab/...`, and `/mnt/storage` is
 hardcoded. `%h`/`%t` are expanded by **systemd at runtime**, verified.
 
 > **Constraint:** this hardcodes the repo location. **The repo must live at
-> `~/travel-home-lab` on the Pi.** `make install` checks this and warns if not.
-> This is the price of symlinks over templating, and it's the one real wart here.
+> `~/travel-home-lab` on the Pi.** `make install` errors out if it does not
+> (override with `FORCE=1`). This is the price of symlinks over templating, and
+> it's the one real wart here.
 
 ### 6.5 Service quadlets
 
@@ -414,6 +438,8 @@ WantedBy=default.target
 
 **Notes on the above**
 
+- `Environment=HOST=travel-lab.lan` and `PublishPort=443:443` are the Pi's
+  **confirmed** `.env` values (§3), not guesses.
 - `%t/podman/podman.sock` replaces the hardcoded `/run/user/1000/podman/podman.sock`.
   Verified to expand to `/run/user/1000`. Same file, no hardcoded uid.
 - `:z` (SELinux relabel) is **a no-op** — the Pi has no SELinux. Kept for parity.
@@ -430,41 +456,50 @@ driven by `make install`.**
 
 ```make
 # Makefile
-REPO        := $(CURDIR)
+REPO        := $(shell realpath -m '$(CURDIR)')
+EXPECTED    := $(shell realpath -m '$(HOME)/travel-home-lab')
 QUADLET_SRC := $(REPO)/quadlets
 UNIT_DIR    ?= $(HOME)/.config/containers/systemd
-EXPECTED    := $(HOME)/travel-home-lab
 
 .PHONY: check install uninstall
 
 check:
 	@if [ "$(REPO)" != "$(EXPECTED)" ]; then \
-		echo "WARNING: repo is at $(REPO)"; \
-		echo "         quadlets hardcode $(EXPECTED) in their Volume= paths."; \
-		echo "         Move the repo there or expect broken mounts."; \
+		echo "ERROR: repo is at $(REPO)"; \
+		echo "       quadlets hardcode $(EXPECTED) in their Volume= paths."; \
+		if [ -z "$(FORCE)" ]; then \
+			echo "       refusing to install; re-run with FORCE=1 to override."; \
+			exit 1; \
+		fi; \
 	fi
 
 install: check
 	@mkdir -p "$(UNIT_DIR)"
-	@for f in $(QUADLET_SRC)/*; do \
+	@for f in "$(QUADLET_SRC)"/*; do \
 		ln -sfn "$$f" "$(UNIT_DIR)/$$(basename "$$f")"; \
+		echo "linked  $$(basename "$$f")"; \
 	done
 	@# prune links of ours whose source was deleted
 	@for l in "$(UNIT_DIR)"/*; do \
 		[ -L "$$l" ] || continue; \
-		case "$$(readlink -f "$$l")" in "$(REPO)"/*) ;; *) continue;; esac; \
-		[ -e "$$l" ] || { rm -f "$$l"; echo "pruned $$(basename "$$l")"; }; \
+		case "$$(readlink -m "$$l")" in "$(REPO)"/*) ;; *) continue;; esac; \
+		[ -e "$$l" ] || { rm -f "$$l"; echo "pruned  $$(basename "$$l")"; }; \
 	done
 	@systemctl --user daemon-reload
 	@echo "--- installed ---"
 	@systemctl --user list-unit-files --no-legend 2>/dev/null \
-		| grep -E '^(kiwix|jellyfin|caddy|gatus|dozzle|glances|whoami)' || true
+		| grep -E '^(kiwix|jellyfin|caddy|gatus|dozzle|glances|whoami|travel-home-lab)' || true
 
 uninstall:
-	@for f in $(QUADLET_SRC)/*; do rm -f "$(UNIT_DIR)/$$(basename "$$f")"; done
+	@for f in "$(QUADLET_SRC)"/*; do rm -f "$(UNIT_DIR)/$$(basename "$$f")"; done
 	@systemctl --user daemon-reload
-	@echo "uninstalled"
+	@echo "uninstalled (quadlet units only; volumes and images are left alone)"
 ```
+
+`check` **errors out** rather than warning, so `make install` on a dev box can't
+scatter broken units into the wrong user manager; `FORCE=1` overrides. This is
+stricter than the earlier draft (which only warned), which matters because a
+wrong-path install would mount empty directories and *appear* healthy.
 
 ### Why symlinks
 
@@ -492,10 +527,18 @@ uninstall:
 
 ## 8. Migration procedure
 
-Assumes `/mnt/storage` already mounts (done) and the repo is at `~/travel-home-lab`.
+Assumes `/mnt/storage` already mounts (done), the repo is at `~/travel-home-lab`,
+and the checkout actually contains `quadlets/` and the `Makefile` (step 0).
 
 ```bash
 cd ~/travel-home-lab
+
+# 0. Make sure the Pi has the quadlets. The docs/Makefile/quadlets live in this
+#    repo; on 2026-10-15 the Pi's checkout was still at eb029b0 ("add dozzle")
+#    and contained none of them, and the doc commits were unpushed. Push from
+#    the dev checkout first, then pull here — otherwise `make install` has
+#    nothing to link.
+git pull --ff-only
 
 # 1. Tear down compose
 #    NOTE: plain `down`, NOT `down -v`. The -v flag would delete all five
@@ -607,8 +650,13 @@ last — it's your rollback path.
 10. **`podman compose down -v` is destructive here.** All five volumes carry
     `com.docker.compose.project=travel-home-lab` labels, so `-v` would delete them
     — 28 MB of Jellyfin state, gatus history, and Caddy's internal CA. Plain
-    `down` is safe. Same applies to `podman volume prune` while compose configs
-    still exist. Worth a warning in the README (§6.3).
+    `down` is safe. **`podman volume prune` is even more dangerous**, because it
+    is *not* scoped to the compose project: it removes any volume not referenced
+    by a **running** container. On 2026-10-15 all seven containers were `Exited`,
+    so every one of the five volumes was prunable — including with compose configs
+    still present. The only safe order is: get the quadlet containers running and
+    holding the volumes **first**, then prune the orphans last (after §9 check 8).
+    Warnings added to the README.
 11. **Volume reuse depends on the names matching exactly.** `VolumeName=` must be
     `travel-home-lab_<name>`; a typo silently creates a *new empty* volume and
     Jellyfin would come up unconfigured. Verification step 3b exists to catch this.
