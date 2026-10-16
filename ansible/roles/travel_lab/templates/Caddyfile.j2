@@ -1,0 +1,39 @@
+# Rendered by Ansible from ansible/group_vars/travel_lab.yml (travel_lab_domain).
+# Do not edit on the Pi: changes are overwritten on the next `deploy`.
+#
+# Every name below is a Caddy site address served with Caddy's internal CA and
+# reverse-proxied to the matching container on the travel-home-lab network.
+kiwix.{{ travel_lab_domain }} {
+  tls internal
+  reverse_proxy kiwix:8080
+}
+
+jellyfin.{{ travel_lab_domain }} {
+  tls internal
+  reverse_proxy jellyfin:8096
+}
+
+whoami.{{ travel_lab_domain }} {
+  tls internal
+  reverse_proxy whoami:80
+}
+
+gatus.{{ travel_lab_domain }} {
+  tls internal
+  reverse_proxy gatus:8080
+}
+
+glances.{{ travel_lab_domain }} {
+  tls internal
+  reverse_proxy glances:61208
+}
+
+dozzle.{{ travel_lab_domain }} {
+  tls internal
+  reverse_proxy dozzle:8080
+}
+
+home.{{ travel_lab_domain }} {
+  tls internal
+  reverse_proxy homer:8080
+}

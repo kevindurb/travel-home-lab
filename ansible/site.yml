@@ -1,0 +1,18 @@
+---
+# One-shot convergence: host prerequisites (escalated) then the stack (as the
+# user). Split into two plays so fact gathering for the stack play happens as
+# kevindurb rather than root.
+#
+#   ansible-playbook site.yml --ask-become-pass
+#
+- name: Prepare the host for rootless podman quadlets
+  hosts: travel_lab
+  become: true
+  roles:
+    - travel_lab_host
+
+- name: Deploy the travel lab stack
+  hosts: travel_lab
+  become: false
+  roles:
+    - travel_lab

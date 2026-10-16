@@ -1,4 +1,0 @@
-# Reuses the existing compose volume (podman volume create --ignore).
-# ~4.3 MB: data.db plus its -wal/-shm (uptime history).
-[Volume]
-VolumeName=travel-home-lab_gatus_data

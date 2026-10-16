@@ -1,3 +1,0 @@
-# Reuses the existing compose volume (podman volume create --ignore).
-[Volume]
-VolumeName=travel-home-lab_caddy_config

@@ -1,0 +1,24 @@
+[Unit]
+Description=Glances system monitor (web mode)
+# Needed to report container state.
+Requires=podman.socket
+After=podman.socket
+
+[Container]
+Image={{ travel_lab_images.glances }}
+ContainerName=glances
+Network={{ travel_lab_network }}.network
+Environment=GLANCES_OPT=-w
+PodmanArgs=--pid=host
+# %t expands to /run/user/<uid>, so glances finds the socket where it expects.
+# /etc/os-release is bind-mounted so it can report the host distribution.
+Volume=%t/podman/podman.sock:/run/user/1000/podman/podman.sock
+Volume=/etc/os-release:/etc/os-release
+AutoUpdate={{ travel_lab_auto_update_value }}
+
+[Service]
+# Keep the monitor running across reboots.
+Restart=always
+
+[Install]
+WantedBy=default.target

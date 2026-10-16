@@ -1,0 +1,15 @@
+---
+# The travel lab is a single Raspberry Pi 4 reached over Tailscale. The short
+# tailnet name `travel-lab` does not resolve from the workstation, so use the
+# full MagicDNS name.
+#
+# Ansible runs from the workstation against the Pi (push model); the Pi does
+# not need a copy of this repository.
+all:
+  vars:
+    ansible_user: kevindurb
+  children:
+    travel_lab:
+      hosts:
+        travel-lab:
+          ansible_host: travel-lab.beaver-cloud.ts.net

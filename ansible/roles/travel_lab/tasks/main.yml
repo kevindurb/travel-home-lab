@@ -1,0 +1,75 @@
+---
+# Deploy the stack as the user. No become: the quadlets are rootless user
+# units, so every systemctl/podman command talks to kevindurb's user manager
+# (travel_lab_user_env supplies XDG_RUNTIME_DIR / the session bus).
+
+- name: Ensure the rootless podman socket is available
+  ansible.builtin.systemd_service:
+    name: podman.socket
+    enabled: true
+    state: started
+    scope: user
+  environment: "{{ travel_lab_user_env }}"
+
+- name: Create the config directories
+  ansible.builtin.file:
+    path: "{{ travel_lab_config_root }}/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ travel_lab_configs.keys() | list }}"
+
+- name: Create the quadlet unit directory
+  ansible.builtin.file:
+    path: "{{ travel_lab_unit_dir }}"
+    state: directory
+    mode: "0755"
+
+# --- render -----------------------------------------------------------------
+- name: Render the service config files
+  ansible.builtin.template:
+    src: "{{ item.value.src }}"
+    dest: "{{ item.value.dest }}"
+    mode: "0644"
+  loop: "{{ travel_lab_configs | dict2items }}"
+  loop_control:
+    label: "{{ item.value.dest }}"
+  register: travel_lab_config_render
+
+- name: Render the quadlet units
+  ansible.builtin.template:
+    src: "quadlets/{{ item }}.j2"
+    dest: "{{ travel_lab_unit_dir }}/{{ item }}"
+    mode: "0644"
+  loop: "{{ travel_lab_units }}"
+  notify: Reload the user systemd manager
+
+- name: Generate the systemd units before starting anything
+  ansible.builtin.meta: flush_handlers
+
+# --- run --------------------------------------------------------------------
+- name: Start the stack
+  ansible.builtin.systemd_service:
+    name: "{{ item }}.service"
+    state: started
+    scope: user
+  loop: "{{ travel_lab_containers }}"
+  environment: "{{ travel_lab_user_env }}"
+
+- name: Restart services whose config changed
+  ansible.builtin.systemd_service:
+    name: "{{ item.item.key }}.service"
+    state: restarted
+    scope: user
+  loop: "{{ travel_lab_config_render.results | selectattr('changed') | list }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  environment: "{{ travel_lab_user_env }}"
+
+- name: Enable the podman auto-update timer
+  ansible.builtin.systemd_service:
+    name: podman-auto-update.timer
+    enabled: true
+    state: started
+    scope: user
+  when: travel_lab_auto_update | bool
+  environment: "{{ travel_lab_user_env }}"

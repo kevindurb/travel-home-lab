@@ -1,5 +1,0 @@
-# Reuses the existing compose volume (podman volume create --ignore).
-# ~28 MB: library setup, users, watched state. Do not rename this:
-# a typo creates a new empty volume and Jellyfin comes up unconfigured.
-[Volume]
-VolumeName=travel-home-lab_jellyfin_config

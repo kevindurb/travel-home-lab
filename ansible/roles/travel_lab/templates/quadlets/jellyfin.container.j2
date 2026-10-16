@@ -1,0 +1,18 @@
+[Unit]
+Description=Jellyfin media server
+
+[Container]
+Image={{ travel_lab_images.jellyfin }}
+ContainerName=jellyfin
+Network={{ travel_lab_network }}.network
+Volume={{ travel_lab_storage }}/media:/media:z
+Volume=jellyfin_config.volume:/config
+AutoUpdate={{ travel_lab_auto_update_value }}
+
+[Service]
+Restart=always
+# Refuse to start if {{ travel_lab_storage }} is not mounted.
+ExecStartPre=/usr/bin/mountpoint -q {{ travel_lab_storage }}
+
+[Install]
+WantedBy=default.target

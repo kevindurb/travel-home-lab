@@ -1,4 +1,0 @@
-# Reuses the existing compose volume (podman volume create --ignore).
-# Holds Caddy's internal PKI + issued leaf certificates.
-[Volume]
-VolumeName=travel-home-lab_caddy_data

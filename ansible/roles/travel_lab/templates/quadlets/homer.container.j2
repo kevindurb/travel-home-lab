@@ -2,13 +2,12 @@
 Description=Homer dashboard (static link page)
 
 [Container]
-Image=docker.io/b4bz/homer:latest
+Image={{ travel_lab_images.homer }}
 ContainerName=homer
-Network=travel-home-lab.network
-# %h is expanded by systemd (repo must be at ~/travel-home-lab).
+Network={{ travel_lab_network }}.network
 # The image serves /www via nginx on 8080; only the assets dir needs the config.
-Volume=%h/travel-home-lab/homer:/www/assets:z
-AutoUpdate=registry
+Volume=%h/.config/homer:/www/assets:z
+AutoUpdate={{ travel_lab_auto_update_value }}
 
 [Service]
 Restart=always

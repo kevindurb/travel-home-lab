@@ -1,0 +1,18 @@
+---
+# Where the three service config files land on the Pi. The container units
+# bind-mount them from here (via `%h/.config/...`), so the names must line up
+# with the Volume= lines in templates/quadlets/.
+travel_lab_configs:
+  caddy:
+    src: Caddyfile.j2
+    dest: "{{ travel_lab_config_root }}/caddy/Caddyfile"
+  gatus:
+    src: gatus-config.yml.j2
+    dest: "{{ travel_lab_config_root }}/gatus/config.yml"
+  homer:
+    src: homer-config.yml.j2
+    dest: "{{ travel_lab_config_root }}/homer/config.yml"
+
+# Value stamped into every unit's AutoUpdate= line.
+travel_lab_auto_update_value: >-
+  {{ 'registry' if travel_lab_auto_update else 'none' }}

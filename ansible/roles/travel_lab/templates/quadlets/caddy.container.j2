@@ -1,0 +1,19 @@
+[Unit]
+Description=Caddy reverse proxy (internal TLS)
+
+[Container]
+Image={{ travel_lab_images.caddy }}
+ContainerName=caddy
+Network={{ travel_lab_network }}.network
+PublishPort={{ travel_lab_https_port }}:443
+# %h is expanded by systemd at runtime; the Caddyfile lives outside this file.
+Volume=%h/.config/caddy:/etc/caddy:z
+Volume=caddy_data.volume:/data
+Volume=caddy_config.volume:/config
+AutoUpdate={{ travel_lab_auto_update_value }}
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

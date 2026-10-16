@@ -1,0 +1,85 @@
+---
+# Host prerequisites. Runs escalated (become: true); see host-prep.yml /
+# site.yml. Every task here is idempotent and none of them touch container
+# state or volumes.
+
+- name: Read the Podman version
+  ansible.builtin.command: podman --version
+  register: travel_lab_host_podman_version
+  changed_when: false
+
+- name: Require Podman 5 or newer (quadlet support)
+  ansible.builtin.assert:
+    that:
+      - >-
+        (travel_lab_host_podman_version.stdout
+         | regex_search('[0-9]+\.[0-9]+\.[0-9]+')) is version('5.0.0', '>=')
+    fail_msg: >-
+      Podman {{ travel_lab_host_podman_version.stdout }} is too old; this stack
+      needs quadlets (Podman >= 5).
+
+- name: Assert the storage volume is mounted
+  ansible.builtin.assert:
+    that:
+      - >-
+        travel_lab_storage in
+        (ansible_facts.mounts | map(attribute='mount') | list)
+    fail_msg: >-
+      {{ travel_lab_storage }} is not a mountpoint. Jellyfin and Kiwix read
+      from it; refusing to proceed so they do not start on a bare directory.
+
+- name: Read /etc/fstab
+  ansible.builtin.slurp:
+    src: /etc/fstab
+  register: travel_lab_host_fstab
+
+- name: Assert the storage volume is in /etc/fstab
+  ansible.builtin.assert:
+    that:
+      - travel_lab_storage in (travel_lab_host_fstab.content | b64decode)
+    fail_msg: >-
+      {{ travel_lab_storage }} has no /etc/fstab entry; it would not be mounted
+      after a reboot.
+
+- name: Allow rootless binding of privileged ports
+  ansible.builtin.copy:
+    dest: "{{ travel_lab_host_sysctl_file }}"
+    content: |
+      # Managed by Ansible (travel-home-lab) -- do not edit by hand.
+      # Rootless Podman/Caddy need to bind :{{ travel_lab_https_port }}.
+      net.ipv4.ip_unprivileged_port_start={{ travel_lab_host_port_floor }}
+    owner: root
+    group: root
+    mode: "0644"
+
+# Applied unconditionally (and cheaply) rather than via a handler: a run that
+# wrote the drop-in but failed here would otherwise not retry, since the copy
+# would report "ok" next time. Absolute path -- systemd-sysctl is not on PATH.
+- name: Apply sysctl settings
+  ansible.builtin.command: "{{ travel_lab_host_sysctl_cmd }}"
+  changed_when: false
+
+- name: Read the live unprivileged port floor
+  ansible.builtin.command: cat /proc/sys/net/ipv4/ip_unprivileged_port_start
+  register: travel_lab_host_port_start
+  changed_when: false
+
+- name: Assert rootless port binding is permitted
+  ansible.builtin.assert:
+    that:
+      - travel_lab_host_port_start.stdout | int <= travel_lab_https_port
+    fail_msg: >-
+      net.ipv4.ip_unprivileged_port_start is
+      {{ travel_lab_host_port_start.stdout }}, which stops rootless Caddy from
+      binding :{{ travel_lab_https_port }}.
+
+- name: Read the current linger state
+  ansible.builtin.command: loginctl show-user {{ travel_lab_user }} -p Linger
+  register: travel_lab_host_linger
+  changed_when: false
+  failed_when: false
+
+- name: Enable systemd linger so the user manager starts at boot
+  ansible.builtin.command: loginctl enable-linger {{ travel_lab_user }}
+  when: "'Linger=yes' not in travel_lab_host_linger.stdout"
+  changed_when: true

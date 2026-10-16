@@ -1,5 +1,12 @@
 # Converting travel-home-lab to Podman Quadlets
 
+> **Superseded 2026-10-16.** The `Makefile` + hand-written `quadlets/` install
+> described here was replaced by an Ansible project; see
+> [ansible-migration.md](ansible-migration.md). This document is kept as the
+> record of *why* the stack runs as rootless user quadlets — that reasoning, the
+> verification table in §3, and the volume warnings still apply. The install
+> mechanics (§6.1, §6.4, §7) and the `make install` workflow are historical.
+
 **Status:** applied 2026-10-15 — deployed on `travel-lab` and verified across a cold boot
 (see §9). Compose configs removed once the reboot check passed.
 **Target:** `travel-lab` (Raspberry Pi 4, aarch64) — Podman **5.4.2**, rootless user

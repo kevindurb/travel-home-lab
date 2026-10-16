@@ -1,0 +1,86 @@
+---
+# ---------------------------------------------------------------------------
+# travel lab -- non-secret stack configuration
+# ---------------------------------------------------------------------------
+# Single source of truth for the stack: domain, storage path, ports, images and
+# the service list. Change a value here and re-run `just deploy`.
+#
+# There are no secrets in this stack: the domain is a LAN name, the TLS is
+# Caddy's internal CA, and nothing here authenticates to anything.
+
+# --- identity ---------------------------------------------------------------
+travel_lab_user: kevindurb
+travel_lab_domain: travel-lab.lan
+travel_lab_storage: /mnt/storage
+travel_lab_https_port: 443
+
+# --- paths on the Pi --------------------------------------------------------
+# Derived from facts, which are gathered as the SSH user (the deploy play runs
+# with become off), so these resolve to kevindurb's home. The quadlet units
+# themselves use the systemd `%h` specifier, so they stay username-agnostic.
+travel_lab_home: "{{ ansible_facts.user_dir }}"
+travel_lab_uid: "{{ ansible_facts.user_uid }}"
+travel_lab_config_root: "{{ travel_lab_home }}/.config"
+travel_lab_unit_dir: "{{ travel_lab_config_root }}/containers/systemd"
+
+# Environment needed to talk to the *user* systemd manager (and rootless
+# podman) from a non-interactive SSH session. Linger=yes guarantees the
+# runtime dir exists even when nobody is logged in.
+travel_lab_user_env:
+  XDG_RUNTIME_DIR: "/run/user/{{ travel_lab_uid }}"
+  DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/{{ travel_lab_uid }}/bus"
+
+# --- behaviour --------------------------------------------------------------
+# When true: enable podman-auto-update.timer (user scope) and stamp
+# `AutoUpdate=registry` into every unit. When false: `AutoUpdate=none` and the
+# timer is left alone. NOTE: enabling the timer is a deliberate change from the
+# pre-Ansible state, where the timer was disabled and AutoUpdate= was inert.
+travel_lab_auto_update: true
+
+travel_lab_network: travel-home-lab
+
+# --- images -----------------------------------------------------------------
+# Pinned to :latest to match the stack's long-standing behaviour. To pin, just
+# replace the tag here (see docs/ansible-migration.md for the caveat around the
+# stateful services, jellyfin in particular).
+travel_lab_images:
+  caddy: docker.io/library/caddy:latest
+  dozzle: docker.io/amir20/dozzle:latest
+  gatus: ghcr.io/twin/gatus:latest
+  glances: docker.io/nicolargo/glances:latest
+  homer: docker.io/b4bz/homer:latest
+  jellyfin: docker.io/jellyfin/jellyfin:latest
+  kiwix: ghcr.io/kiwix/kiwix-serve:latest
+  whoami: docker.io/traefik/whoami:latest
+
+# --- service shape ----------------------------------------------------------
+# Container quadlet units, in start order. The volume and network units are
+# pulled in as dependencies of these.
+travel_lab_containers:
+  - kiwix
+  - jellyfin
+  - caddy
+  - gatus
+  - dozzle
+  - glances
+  - homer
+  - whoami
+
+# Every quadlet unit rendered into travel_lab_unit_dir (containers + volumes +
+# network). Each maps to templates/quadlets/<name>.j2. The `.volume` file names
+# are referenced by the container units, so they must not change.
+travel_lab_units:
+  - travel-home-lab.network
+  - caddy_data.volume
+  - caddy_config.volume
+  - jellyfin_config.volume
+  - gatus_data.volume
+  - dozzle_data.volume
+  - caddy.container
+  - dozzle.container
+  - gatus.container
+  - glances.container
+  - homer.container
+  - jellyfin.container
+  - kiwix.container
+  - whoami.container

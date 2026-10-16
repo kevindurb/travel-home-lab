@@ -2,10 +2,10 @@
 Description=whoami test endpoint
 
 [Container]
-Image=docker.io/traefik/whoami:latest
+Image={{ travel_lab_images.whoami }}
 ContainerName=whoami
-Network=travel-home-lab.network
-AutoUpdate=registry
+Network={{ travel_lab_network }}.network
+AutoUpdate={{ travel_lab_auto_update_value }}
 
 [Service]
 Restart=always

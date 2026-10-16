@@ -1,0 +1,13 @@
+---
+# Collections used by this project. Nothing here is required for the default
+# templated-quadlet path (it is all ansible.builtin), but they are the house
+# baseline and containers.podman keeps the native `podman quadlet install`
+# route (containers.podman.podman_quadlet) available if we ever want it.
+#
+#   ansible-galaxy collection install -r requirements.yml
+collections:
+  - community.general
+  - ansible.posix
+  - containers.podman
+
+roles: []

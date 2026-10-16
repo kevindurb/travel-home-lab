@@ -1,0 +1,11 @@
+---
+# Deploy / update the stack. Runs entirely as the stack user -- no sudo.
+#
+#   ansible-playbook deploy.yml
+#   ansible-playbook deploy.yml --check --diff
+#
+- name: Deploy the travel lab stack
+  hosts: travel_lab
+  become: false
+  roles:
+    - travel_lab

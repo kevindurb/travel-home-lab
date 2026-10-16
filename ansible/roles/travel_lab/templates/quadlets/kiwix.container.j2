@@ -1,0 +1,19 @@
+[Unit]
+Description=Kiwix offline ZIM server
+
+[Container]
+Image={{ travel_lab_images.kiwix }}
+ContainerName=kiwix
+# Overrides the image CMD: kiwix-serve loads every *.zim in /data.
+Exec=*.zim
+Network={{ travel_lab_network }}.network
+Volume={{ travel_lab_storage }}/zim:/data:z
+AutoUpdate={{ travel_lab_auto_update_value }}
+
+[Service]
+Restart=always
+# Refuse to start if {{ travel_lab_storage }} is not mounted.
+ExecStartPre=/usr/bin/mountpoint -q {{ travel_lab_storage }}
+
+[Install]
+WantedBy=default.target

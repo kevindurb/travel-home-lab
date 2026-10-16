@@ -5,14 +5,13 @@ Requires=podman.socket
 After=podman.socket
 
 [Container]
-Image=docker.io/amir20/dozzle:latest
+Image={{ travel_lab_images.dozzle }}
 ContainerName=dozzle
-Network=travel-home-lab.network
+Network={{ travel_lab_network }}.network
 Volume=dozzle_data.volume:/data
-# No mode suffix — see glances.container: the compose ":roz" is not valid
-# podman syntax and compose dropped it.
+# Read-write bind of the rootless podman socket (needed to read logs).
 Volume=%t/podman/podman.sock:/var/run/docker.sock
-AutoUpdate=registry
+AutoUpdate={{ travel_lab_auto_update_value }}
 
 [Service]
 Restart=always

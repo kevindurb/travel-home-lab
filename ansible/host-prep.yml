@@ -1,0 +1,10 @@
+---
+# Host prerequisites only. Needs sudo on the Pi:
+#
+#   ansible-playbook host-prep.yml --ask-become-pass
+#
+- name: Prepare the host for rootless podman quadlets
+  hosts: travel_lab
+  become: true
+  roles:
+    - travel_lab_host
