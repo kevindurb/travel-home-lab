@@ -1,7 +1,7 @@
 # travel-home-lab
 
 Rootless Podman Quadlets for the travel lab stack (kiwix, jellyfin, caddy,
-gatus, glances, dozzle, whoami) on `travel-lab` (Raspberry Pi 4, aarch64).
+gatus, glances, dozzle, homer, whoami) on `travel-lab` (Raspberry Pi 4, aarch64).
 
 The stack used to run under `podman compose`; see
 [docs/quadlet-migration.md](docs/quadlet-migration.md) for the plan, the
@@ -23,7 +23,7 @@ file's directory, not the repo.
 ## Operate
 
 ```bash
-systemctl --user start kiwix jellyfin caddy gatus dozzle glances whoami
+systemctl --user start kiwix jellyfin caddy gatus dozzle glances homer whoami
 systemctl --user status caddy
 journalctl --user -u kiwix -f
 ```

@@ -49,3 +49,8 @@ endpoints:
     url: http://dozzle:8080
     group: apps
     conditions: ['[STATUS] == 200']
+
+  - name: homer
+    url: http://homer:8080
+    group: apps
+    conditions: ['[STATUS] == 200']

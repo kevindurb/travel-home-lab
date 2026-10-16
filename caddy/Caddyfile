@@ -27,3 +27,8 @@ dozzle.{$HOST} {
   tls internal
   reverse_proxy dozzle:8080
 }
+
+home.{$HOST} {
+  tls internal
+  reverse_proxy homer:8080
+}

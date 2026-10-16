@@ -36,7 +36,7 @@ install: check
 	@systemctl --user daemon-reload
 	@echo "--- installed ---"
 	@systemctl --user list-unit-files --no-legend 2>/dev/null \
-		| grep -E '^(kiwix|jellyfin|caddy|gatus|dozzle|glances|whoami|travel-home-lab)' || true
+		| grep -E '^(kiwix|jellyfin|caddy|gatus|dozzle|glances|homer|whoami|travel-home-lab)' || true
 
 uninstall:
 	@for f in "$(QUADLET_SRC)"/*; do rm -f "$(UNIT_DIR)/$$(basename "$$f")"; done
