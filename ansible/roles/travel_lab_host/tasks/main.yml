@@ -2,6 +2,10 @@
 # Host prerequisites. Runs escalated (become: true); see host-prep.yml /
 # site.yml. Every task here is idempotent and none of them touch container
 # state or volumes.
+#
+# The old privileged-port sysctl (for Caddy's :443) is gone: ingress is now
+# Tailscale Services, which bind :443 on tailscale0 as root, and the containers
+# publish only 127.0.0.1:<high port>.
 
 - name: Read the Podman version
   ansible.builtin.command: podman --version
@@ -41,37 +45,20 @@
       {{ travel_lab_storage }} has no /etc/fstab entry; it would not be mounted
       after a reboot.
 
-- name: Allow rootless binding of privileged ports
-  ansible.builtin.copy:
-    dest: "{{ travel_lab_host_sysctl_file }}"
-    content: |
-      # Managed by Ansible (travel-home-lab) -- do not edit by hand.
-      # Rootless Podman/Caddy need to bind :{{ travel_lab_https_port }}.
-      net.ipv4.ip_unprivileged_port_start={{ travel_lab_host_port_floor }}
-    owner: root
-    group: root
-    mode: "0644"
-
-# Applied unconditionally (and cheaply) rather than via a handler: a run that
-# wrote the drop-in but failed here would otherwise not retry, since the copy
-# would report "ok" next time. Absolute path -- systemd-sysctl is not on PATH.
-- name: Apply sysctl settings
-  ansible.builtin.command: "{{ travel_lab_host_sysctl_cmd }}"
+# Tailscale Serve writes need root unless the stack user is the tailscaled
+# operator. Set it once so `deploy` can apply the Serve config with no sudo.
+- name: Read the current Tailscale operator
+  ansible.builtin.command: tailscale debug prefs
+  register: travel_lab_host_tailscale_prefs
   changed_when: false
+  failed_when: false
 
-- name: Read the live unprivileged port floor
-  ansible.builtin.command: cat /proc/sys/net/ipv4/ip_unprivileged_port_start
-  register: travel_lab_host_port_start
-  changed_when: false
-
-- name: Assert rootless port binding is permitted
-  ansible.builtin.assert:
-    that:
-      - travel_lab_host_port_start.stdout | int <= travel_lab_https_port
-    fail_msg: >-
-      net.ipv4.ip_unprivileged_port_start is
-      {{ travel_lab_host_port_start.stdout }}, which stops rootless Caddy from
-      binding :{{ travel_lab_https_port }}.
+- name: Let {{ travel_lab_user }} manage Tailscale Serve without sudo
+  ansible.builtin.command: tailscale set --operator={{ travel_lab_user }}
+  when: >-
+    travel_lab_host_tailscale_prefs.stdout is not search(
+      '"OperatorUser": "' ~ travel_lab_user ~ '"')
+  changed_when: true
 
 - name: Read the current linger state
   ansible.builtin.command: loginctl show-user {{ travel_lab_user }} -p Linger

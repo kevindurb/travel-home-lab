@@ -10,6 +10,8 @@ ContainerName=glances
 Network={{ travel_lab_network }}.network
 Environment=GLANCES_OPT=-w
 PodmanArgs=--pid=host
+# Loopback only: tailscaled proxies travel-glances.<tailnet> here.
+PublishPort=127.0.0.1:{{ travel_lab_tailscale_services.glances.local_port }}:61208
 # %t expands to /run/user/<uid>, so glances finds the socket where it expects.
 # /etc/os-release is bind-mounted so it can report the host distribution.
 Volume=%t/podman/podman.sock:/run/user/1000/podman/podman.sock

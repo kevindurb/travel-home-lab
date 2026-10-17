@@ -56,3 +56,35 @@ endpoints:
     url: http://homer:8080
     group: apps
     conditions: ['[STATUS] == 200']
+
+  # Tailscale Services, reached through tailscaled (validates TLS + ingress).
+  # The container resolves MagicDNS via the host's Tailscale resolver.
+  - name: tailnet-kiwix
+    url: https://{{ travel_lab_tailscale_services.kiwix.service }}.{{ travel_lab_tailnet_domain }}
+    group: tailnet
+    conditions: ['[STATUS] == 200']
+
+  - name: tailnet-jellyfin
+    url: https://{{ travel_lab_tailscale_services.jellyfin.service }}.{{ travel_lab_tailnet_domain }}
+    group: tailnet
+    conditions: ['[STATUS] == 200']
+
+  - name: tailnet-whoami
+    url: https://{{ travel_lab_tailscale_services.whoami.service }}.{{ travel_lab_tailnet_domain }}
+    group: tailnet
+    conditions: ['[STATUS] == 200']
+
+  - name: tailnet-glances
+    url: https://{{ travel_lab_tailscale_services.glances.service }}.{{ travel_lab_tailnet_domain }}
+    group: tailnet
+    conditions: ['[STATUS] == 200']
+
+  - name: tailnet-dozzle
+    url: https://{{ travel_lab_tailscale_services.dozzle.service }}.{{ travel_lab_tailnet_domain }}
+    group: tailnet
+    conditions: ['[STATUS] == 200']
+
+  - name: tailnet-homer
+    url: https://{{ travel_lab_tailscale_services.homer.service }}.{{ travel_lab_tailnet_domain }}
+    group: tailnet
+    conditions: ['[STATUS] == 200']

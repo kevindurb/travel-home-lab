@@ -41,8 +41,16 @@ ssh *args:
 
 # Container unit status on the Pi.
 status:
-  ssh travel-lab.beaver-cloud.ts.net 'systemctl --user --no-pager status kiwix jellyfin caddy gatus glances dozzle homer whoami'
+  ssh travel-lab.beaver-cloud.ts.net 'systemctl --user --no-pager status kiwix jellyfin gatus glances dozzle homer whoami'
 
-# Follow a unit's journal, e.g. `just logs caddy`
+# Tailscale Services the Pi is serving (name -> loopback proxy target).
+serves:
+  ssh travel-lab.beaver-cloud.ts.net 'tailscale serve status'
+
+# Same, as JSON, including whether each Service listens on HTTP or HTTPS.
+serves-json:
+  ssh travel-lab.beaver-cloud.ts.net 'tailscale serve status --json'
+
+# Follow a unit's journal, e.g. `just logs jellyfin`
 logs unit:
   ssh -t travel-lab.beaver-cloud.ts.net 'journalctl --user -u {{ unit }} -f'

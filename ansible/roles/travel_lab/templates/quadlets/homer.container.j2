@@ -5,6 +5,8 @@ Description=Homer dashboard (static link page)
 Image={{ travel_lab_images.homer }}
 ContainerName=homer
 Network={{ travel_lab_network }}.network
+# Loopback only: tailscaled proxies travel-home.<tailnet> here.
+PublishPort=127.0.0.1:{{ travel_lab_tailscale_services.homer.local_port }}:8080
 # The image serves /www via nginx on 8080; only the assets dir needs the config.
 Volume=%h/.config/homer:/www/assets:z
 AutoUpdate={{ travel_lab_auto_update_value }}

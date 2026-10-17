@@ -4,10 +4,11 @@
 #   ansible-playbook teardown.yml
 #
 # This deliberately does NOT touch:
-#   * named volumes (jellyfin_config, gatus_data, caddy_data, caddy_config,
-#     dozzle_data) -- they hold real state, see README.md
+#   * named volumes (jellyfin_config, gatus_data, dozzle_data, plus the
+#     retired caddy_data / caddy_config) -- they hold real state, see README.md
 #   * images
-#   * the rendered config files under ~/.config/{caddy,gatus,homer}
+#   * the rendered config files under ~/.config/{gatus,homer,tailscale}
+#   * the Tailscale Serve configuration (clear it with `tailscale serve reset`)
 #   * the Pi's clone of this repo, if any
 #
 - name: Tear down the travel lab stack
@@ -41,4 +42,4 @@
           - "Units removed; images and volumes untouched."
           - >-
             Rendered configs remain in {{ travel_lab_config_root }}/
-            (caddy, gatus, homer).
+            (gatus, homer, tailscale).

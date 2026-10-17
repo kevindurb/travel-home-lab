@@ -5,6 +5,8 @@ Description=Jellyfin media server
 Image={{ travel_lab_images.jellyfin }}
 ContainerName=jellyfin
 Network={{ travel_lab_network }}.network
+# Loopback only: tailscaled proxies travel-jellyfin.<tailnet> here.
+PublishPort=127.0.0.1:{{ travel_lab_tailscale_services.jellyfin.local_port }}:8096
 Volume={{ travel_lab_storage }}/media:/media:z
 Volume=jellyfin_config.volume:/config
 AutoUpdate={{ travel_lab_auto_update_value }}

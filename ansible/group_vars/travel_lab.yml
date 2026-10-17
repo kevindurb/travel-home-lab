@@ -2,17 +2,19 @@
 # ---------------------------------------------------------------------------
 # travel lab -- non-secret stack configuration
 # ---------------------------------------------------------------------------
-# Single source of truth for the stack: domain, storage path, ports, images and
-# the service list. Change a value here and re-run `just deploy`.
+# Single source of truth for the stack: tailnet domain, storage path, service
+# ports, images and the service list. Change a value here and re-run
+# `just deploy`.
 #
-# There are no secrets in this stack: the domain is a LAN name, the TLS is
-# Caddy's internal CA, and nothing here authenticates to anything.
+# There are no secrets in this stack: ingress is Tailscale Services (real,
+# Tailscale-issued certificates) and nothing here authenticates to anything.
 
 # --- identity ---------------------------------------------------------------
 travel_lab_user: kevindurb
-travel_lab_domain: travel-lab.lan
+# Tailnet MagicDNS suffix. Each Service is exposed as
+# https://<service>.<tailnet-domain>, e.g. travel-kiwix.beaver-cloud.ts.net.
+travel_lab_tailnet_domain: beaver-cloud.ts.net
 travel_lab_storage: /mnt/storage
-travel_lab_https_port: 443
 
 # --- paths on the Pi --------------------------------------------------------
 # Derived from facts, which are gathered as the SSH user (the deploy play runs
@@ -33,18 +35,38 @@ travel_lab_user_env:
 # --- behaviour --------------------------------------------------------------
 # When true: enable podman-auto-update.timer (user scope) and stamp
 # `AutoUpdate=registry` into every unit. When false: `AutoUpdate=none` and the
-# timer is left alone. NOTE: enabling the timer is a deliberate change from the
-# pre-Ansible state, where the timer was disabled and AutoUpdate= was inert.
+# timer is left alone.
 travel_lab_auto_update: true
 
 travel_lab_network: travel-home-lab
+
+# --- ingress: Tailscale Services --------------------------------------------
+# One Tailscale Service per app, replacing the old Caddy reverse proxy. Each
+# container publishes its port on 127.0.0.1:<local_port>; `tailscale serve`
+# terminates TLS on tailscale0:443 and proxies to that loopback port, so no
+# privileged ports and no internal CA.
+#
+# This mapping is the single source of truth for the quadlet PublishPort lines,
+# the `tailscale serve` declarations, and the homer/gatus URLs. local_port is
+# the *host* port; the container port is written in each quadlet.
+#
+# Adding a service: add it here, add its quadlet to travel_lab_units, and
+# define svc:<service> in the Tailscale admin console (see
+# docs/tailscale-serve-migration.md).
+travel_lab_tailscale_services:
+  kiwix:    { service: travel-kiwix,    local_port: 18080 }
+  jellyfin: { service: travel-jellyfin, local_port: 18096 }
+  gatus:    { service: travel-gatus,    local_port: 18081 }
+  glances:  { service: travel-glances,  local_port: 18108 }
+  dozzle:   { service: travel-dozzle,   local_port: 18082 }
+  homer:    { service: travel-home,     local_port: 18083 }
+  whoami:   { service: travel-whoami,   local_port: 18084 }
 
 # --- images -----------------------------------------------------------------
 # Pinned to :latest to match the stack's long-standing behaviour. To pin, just
 # replace the tag here (see docs/ansible-migration.md for the caveat around the
 # stateful services, jellyfin in particular).
 travel_lab_images:
-  caddy: docker.io/library/caddy:latest
   dozzle: docker.io/amir20/dozzle:latest
   gatus: ghcr.io/twin/gatus:latest
   glances: docker.io/nicolargo/glances:latest
@@ -59,7 +81,6 @@ travel_lab_images:
 travel_lab_containers:
   - kiwix
   - jellyfin
-  - caddy
   - gatus
   - dozzle
   - glances
@@ -71,12 +92,9 @@ travel_lab_containers:
 # are referenced by the container units, so they must not change.
 travel_lab_units:
   - travel-home-lab.network
-  - caddy_data.volume
-  - caddy_config.volume
   - jellyfin_config.volume
   - gatus_data.volume
   - dozzle_data.volume
-  - caddy.container
   - dozzle.container
   - gatus.container
   - glances.container

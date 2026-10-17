@@ -8,6 +8,8 @@ After=podman.socket
 Image={{ travel_lab_images.dozzle }}
 ContainerName=dozzle
 Network={{ travel_lab_network }}.network
+# Loopback only: tailscaled proxies travel-dozzle.<tailnet> here.
+PublishPort=127.0.0.1:{{ travel_lab_tailscale_services.dozzle.local_port }}:8080
 Volume=dozzle_data.volume:/data
 # Read-write bind of the rootless podman socket (needed to read logs).
 Volume=%t/podman/podman.sock:/var/run/docker.sock

@@ -7,6 +7,8 @@ ContainerName=kiwix
 # Overrides the image CMD: kiwix-serve loads every *.zim in /data.
 Exec=*.zim
 Network={{ travel_lab_network }}.network
+# Loopback only: tailscaled proxies travel-kiwix.<tailnet> here (see travel_lab_tailscale_services).
+PublishPort=127.0.0.1:{{ travel_lab_tailscale_services.kiwix.local_port }}:8080
 Volume={{ travel_lab_storage }}/zim:/data:z
 AutoUpdate={{ travel_lab_auto_update_value }}
 

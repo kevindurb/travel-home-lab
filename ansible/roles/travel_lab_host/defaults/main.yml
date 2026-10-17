@@ -1,9 +1,0 @@
----
-travel_lab_host_sysctl_file: /etc/sysctl.d/99-podman-ports.conf
-
-# systemd-sysctl applies every /etc/sysctl.d drop-in. It lives in systemd's
-# private dir and is never on PATH, so it must be called by absolute path.
-travel_lab_host_sysctl_cmd: /usr/lib/systemd/systemd-sysctl
-
-# Rootless Caddy must bind :443 without privilege.
-travel_lab_host_port_floor: 80

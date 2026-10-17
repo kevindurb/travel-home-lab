@@ -1,8 +1,16 @@
 # travel-home-lab
 
-Rootless Podman Quadlets for the travel lab stack (kiwix, jellyfin, caddy,
-gatus, glances, dozzle, homer, whoami) on `travel-lab` (Raspberry Pi 4,
-aarch64), deployed with **Ansible**.
+Rootless Podman Quadlets for the travel lab stack (kiwix, jellyfin, gatus,
+glances, dozzle, homer, whoami) on `travel-lab` (Raspberry Pi 4, aarch64),
+deployed with **Ansible**.
+
+Ingress is **Tailscale Services**, not a reverse proxy: each container
+publishes on `127.0.0.1` only, and tailscaled terminates TLS on `tailscale0:443`
+and proxies each `<service>.beaver-cloud.ts.net` name to its loopback port. The
+Services are declared with `tailscale serve --service … --https=443` (the CLI
+form — the huJSON config file cannot request an HTTPS listener). There is no
+Caddy, no internal CA, and nothing on `.lan`. See
+[docs/tailscale-serve-migration.md](docs/tailscale-serve-migration.md).
 
 The stack ran under `podman compose`, then under hand-written quadlets installed
 by a `Makefile`. Both are retired; see
@@ -46,8 +54,7 @@ not.
 ## What lands on the Pi
 
 ```
-~/.config/containers/systemd/     # 14 quadlet units (.network, .volume, .container)
-~/.config/caddy/Caddyfile
+~/.config/containers/systemd/           # 11 quadlet units: 1 network, 3 volumes, 7 containers
 ~/.config/gatus/config.yml
 ~/.config/homer/config.yml
 ```
@@ -63,15 +70,17 @@ From the repository root:
 
 ```bash
 just status
-just logs caddy
+just logs kiwix
+just serves
 just ssh 'podman ps'
 ```
 
 Or on the Pi directly:
 
 ```bash
-systemctl --user status caddy
+systemctl --user status jellyfin
 journalctl --user -u kiwix -f
+tailscale serve status
 ```
 
 Quadlets autostart at boot via `[Install] WantedBy=default.target` plus
@@ -80,30 +89,34 @@ it).
 
 ## ⚠️ Do not destroy the volumes
 
-Five named volumes hold state that is painful to recreate:
+Five named volumes exist. Three hold state that is painful to recreate; two are
+**retired Caddy volumes** that nothing references any more (kept only so a
+rollback can restore the old internal CA):
 
 | Volume | Holds |
 |---|---|
 | `travel-home-lab_jellyfin_config` | Jellyfin library setup, users, watched state |
 | `travel-home-lab_gatus_data` | uptime history (`data.db` + WAL) |
-| `travel-home-lab_caddy_data` | Caddy internal PKI / issued certs |
-| `travel-home-lab_caddy_config` | Caddy autosave config |
 | `travel-home-lab_dozzle_data` | (empty) |
+| `travel-home-lab_caddy_data` | *(retired)* Caddy internal PKI / issued certs |
+| `travel-home-lab_caddy_config` | *(retired)* Caddy autosave config |
 
-- The `.volume` units reuse these names, so nothing is created or migrated.
+- The live `.volume` units reuse these names, so nothing is created or migrated.
   Do not rename them.
 - **Never run `podman compose down -v`.** The volumes carry
   `com.docker.compose.project=travel-home-lab` labels, so `-v` deletes all five.
   Plain `podman compose down` is safe.
 - **Do not run `podman volume prune`** unless the quadlet containers are running
   and holding the volumes. Prune removes any volume not referenced by a *running*
-  container — including these five whenever the stack is stopped.
+  container — including the three live ones whenever the stack is stopped. (The
+  two retired Caddy volumes are unreferenced and *are* prunable; that is fine.)
 - One extra **anonymous** hex-named volume is normal: the Jellyfin image declares
   `VOLUME /cache`, and since only `/config` is mounted explicitly, `/cache` gets an
   anonymous volume. It is throwaway transcoding cache and goes away when the
   container stops.
-- **Do not run compose and the quadlets at the same time.** Port 443 and the
-  container names would collide.
+- **Do not run compose and the quadlets at the same time.** tailscaled holds
+  `:443` and the compose Caddy would want it too, plus the container names would
+  collide.
 
 ## Auto-update
 

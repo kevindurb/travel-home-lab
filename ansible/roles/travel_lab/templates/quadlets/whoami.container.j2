@@ -5,6 +5,8 @@ Description=whoami test endpoint
 Image={{ travel_lab_images.whoami }}
 ContainerName=whoami
 Network={{ travel_lab_network }}.network
+# Loopback only: tailscaled proxies travel-whoami.<tailnet> here.
+PublishPort=127.0.0.1:{{ travel_lab_tailscale_services.whoami.local_port }}:80
 AutoUpdate={{ travel_lab_auto_update_value }}
 
 [Service]

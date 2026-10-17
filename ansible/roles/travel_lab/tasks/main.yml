@@ -2,6 +2,10 @@
 # Deploy the stack as the user. No become: the quadlets are rootless user
 # units, so every systemctl/podman command talks to kevindurb's user manager
 # (travel_lab_user_env supplies XDG_RUNTIME_DIR / the session bus).
+#
+# Ingress is Tailscale Services: containers publish on 127.0.0.1 only and
+# `tailscale serve` fronts them. That needs no privilege because host-prep sets
+# kevindurb as the tailscaled operator.
 
 - name: Ensure the rootless podman socket is available
   ansible.builtin.systemd_service:
@@ -42,6 +46,7 @@
     mode: "0644"
   loop: "{{ travel_lab_units }}"
   notify: Reload the user systemd manager
+  register: travel_lab_units_render
 
 - name: Generate the systemd units before starting anything
   ansible.builtin.meta: flush_handlers
@@ -55,15 +60,83 @@
   loop: "{{ travel_lab_containers }}"
   environment: "{{ travel_lab_user_env }}"
 
+- name: Note which container units changed
+  ansible.builtin.set_fact:
+    travel_lab_changed_containers: >-
+      {{ travel_lab_units_render.results
+         | selectattr('changed')
+         | map(attribute='item')
+         | select('search', '\.container$')
+         | map('regex_replace', '\.container$', '')
+         | list }}
+
+# A running container keeps its old ExecStart until it is restarted, so a unit
+# whose file changed (a new PublishPort, a new image tag, ...) only takes
+# effect after a restart. `daemon-reload` alone is not enough.
+- name: Restart containers whose unit changed
+  ansible.builtin.systemd_service:
+    name: "{{ item.item | regex_replace('\\.container$', '') }}.service"
+    state: restarted
+    scope: user
+  loop: "{{ travel_lab_units_render.results | selectattr('changed') | list }}"
+  when: item.item.endswith('.container')
+  loop_control:
+    label: "{{ item.item }}"
+  environment: "{{ travel_lab_user_env }}"
+
 - name: Restart services whose config changed
   ansible.builtin.systemd_service:
     name: "{{ item.item.key }}.service"
     state: restarted
     scope: user
   loop: "{{ travel_lab_config_render.results | selectattr('changed') | list }}"
+  when: item.item.key not in travel_lab_changed_containers
   loop_control:
     label: "{{ item.item.key }}"
   environment: "{{ travel_lab_user_env }}"
+
+# --- ingress ----------------------------------------------------------------
+# Ingress is Tailscale Services, declared with the CLI. The huJSON config file
+# is *not* used: its endpoints only accept `tcp:<port>` keys, and tcp:443 with
+# an http:// target yields a plaintext HTTP listener (status shows
+# {"443":{"HTTP":true}}), with no way to request HTTPS. `--https=443` sets
+# {"443":{"HTTPS":true}} — TLS terminated by tailscaled, plain HTTP to the
+# container — and advertises the Service in the same step (Tailscale's
+# recommended method). Writes need no privilege: host-prep sets the operator.
+- name: Read the live Tailscale Serve status
+  ansible.builtin.command: tailscale serve status --json
+  register: travel_lab_serve_status
+  changed_when: false
+  failed_when: false
+
+- name: Parse the live Services
+  ansible.builtin.set_fact:
+    travel_lab_live_services: >-
+      {{ (travel_lab_serve_status.stdout | from_json).Services
+         if (travel_lab_serve_status.stdout | default('')) is search('"Services"')
+         else {} }}
+
+# Re-run only when the Service is not already HTTPS on the right local port.
+# `clear` first because Tailscale refuses to flip a Service from HTTP to HTTPS
+# on the same port in place (the state the retired svc:travel-jellyfin test was
+# left in). Each svc:<name> must exist in the admin console; see
+# docs/tailscale-serve-migration.md §8.
+- name: Publish each Service over HTTPS
+  ansible.builtin.shell: |
+    tailscale serve clear svc:{{ item.value.service }} >/dev/null 2>&1 || true
+    tailscale serve --service=svc:{{ item.value.service }} --https=443 \
+      http://127.0.0.1:{{ item.value.local_port }}
+  loop: "{{ travel_lab_tailscale_services | dict2items }}"
+  loop_control:
+    label: "{{ item.value.service }}"
+  vars:
+    live: "{{ travel_lab_live_services.get('svc:' ~ item.value.service, {}) }}"
+  when: >-
+    (live.get('TCP', {}).get('443', {}).get('HTTPS', false) | bool) == false
+    or (((live.get('Web', {})).values() | list | first)
+        .get('Handlers', {}).get('/', {}).get('Proxy', '')
+        != 'http://127.0.0.1:' ~ item.value.local_port)
+  changed_when: true
 
 - name: Enable the podman auto-update timer
   ansible.builtin.systemd_service:

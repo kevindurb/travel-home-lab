@@ -1,9 +1,11 @@
-# Rendered by Ansible from ansible/group_vars/travel_lab.yml (travel_lab_domain).
+# Rendered by Ansible from ansible/group_vars/travel_lab.yml.
 # Do not edit on the Pi: changes are overwritten on the next `deploy`.
 #
 # Homer reads this file from /www/assets (bind-mounted from ~/.config/homer).
-# Every link is served by Caddy with tls internal on the travel-home-lab
-# network, so the URLs are the public *.<domain> names.
+# Every link points at a Tailscale Service, i.e. the public
+# <service>.<tailnet-domain> name served by tailscaled with a real TLS cert.
+# The service names come from travel_lab_tailscale_services, so they cannot
+# drift from the `tailscale serve` declarations.
 ---
 title: "Travel Lab"
 subtitle: "Raspberry Pi 4"
@@ -22,11 +24,11 @@ services:
       - name: "Jellyfin"
         subtitle: "Film & TV library"
         icon: "fas fa-play-circle"
-        url: "https://jellyfin.{{ travel_lab_domain }}"
+        url: "https://{{ travel_lab_tailscale_services.jellyfin.service }}.{{ travel_lab_tailnet_domain }}"
       - name: "Kiwix"
         subtitle: "Offline Wikipedia & more"
         icon: "fas fa-book"
-        url: "https://kiwix.{{ travel_lab_domain }}"
+        url: "https://{{ travel_lab_tailscale_services.kiwix.service }}.{{ travel_lab_tailnet_domain }}"
 
   - name: "Ops"
     icon: "fas fa-heartbeat"
@@ -34,16 +36,16 @@ services:
       - name: "Gatus"
         subtitle: "Uptime monitoring"
         icon: "fas fa-heartbeat"
-        url: "https://gatus.{{ travel_lab_domain }}"
+        url: "https://{{ travel_lab_tailscale_services.gatus.service }}.{{ travel_lab_tailnet_domain }}"
       - name: "Glances"
         subtitle: "System monitor"
         icon: "fas fa-tachometer-alt"
-        url: "https://glances.{{ travel_lab_domain }}"
+        url: "https://{{ travel_lab_tailscale_services.glances.service }}.{{ travel_lab_tailnet_domain }}"
       - name: "Dozzle"
         subtitle: "Container logs"
         icon: "fas fa-file-code"
-        url: "https://dozzle.{{ travel_lab_domain }}"
+        url: "https://{{ travel_lab_tailscale_services.dozzle.service }}.{{ travel_lab_tailnet_domain }}"
       - name: "whoami"
         subtitle: "Test endpoint"
         icon: "fas fa-user-secret"
-        url: "https://whoami.{{ travel_lab_domain }}"
+        url: "https://{{ travel_lab_tailscale_services.whoami.service }}.{{ travel_lab_tailnet_domain }}"
