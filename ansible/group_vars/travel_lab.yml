@@ -15,6 +15,7 @@ travel_lab_user: kevindurb
 # https://<service>.<tailnet-domain>, e.g. travel-kiwix.beaver-cloud.ts.net.
 travel_lab_tailnet_domain: beaver-cloud.ts.net
 travel_lab_storage: /mnt/storage
+travel_lab_jellyfin_state: "{{ travel_lab_storage }}/jellyfin"
 
 # --- paths on the Pi --------------------------------------------------------
 # Derived from facts, which are gathered as the SSH user (the deploy play runs
@@ -92,7 +93,6 @@ travel_lab_containers:
 # are referenced by the container units, so they must not change.
 travel_lab_units:
   - travel-home-lab.network
-  - jellyfin_config.volume
   - gatus_data.volume
   - dozzle_data.volume
   - dozzle.container

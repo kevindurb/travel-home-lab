@@ -8,7 +8,9 @@ Network={{ travel_lab_network }}.network
 # Loopback only: tailscaled proxies travel-jellyfin.<tailnet> here.
 PublishPort=127.0.0.1:{{ travel_lab_tailscale_services.jellyfin.local_port }}:8096
 Volume={{ travel_lab_storage }}/media:/media:z
-Volume=jellyfin_config.volume:/config
+# On the SSD, not the SD card: SD write stalls froze playback.
+Volume={{ travel_lab_jellyfin_state }}/config:/config:Z
+Volume={{ travel_lab_jellyfin_state }}/cache:/cache:Z
 AutoUpdate={{ travel_lab_auto_update_value }}
 
 [Service]
