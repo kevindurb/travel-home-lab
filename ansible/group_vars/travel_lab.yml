@@ -164,6 +164,7 @@ travel_lab_containers:
 # are referenced by the container units, so they must not change.
 travel_lab_units:
   - travel-home-lab.network
+  - jellyfin_config.volume
   - gatus_data.volume
   - dozzle_data.volume
   - dozzle.container

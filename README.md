@@ -72,7 +72,7 @@ Travel TV service, starts normally. Connect the NVMe and re-run `just deploy`
 ## What lands on the Pi
 
 ```
-~/.config/containers/systemd/           # 11 quadlet units: 1 network, 2 volumes, 8 containers
+~/.config/containers/systemd/           # 12 quadlet units: 1 network, 3 volumes, 8 containers
 ~/.config/gatus/config.yml
 ~/.config/homer/config.yml
 ~/.config/travel-tv/                    # launcher page + nginx config
@@ -126,13 +126,13 @@ it).
 
 ## ⚠️ Do not destroy the volumes
 
-Five named volumes exist. Two hold state that is painful to recreate; one is
-the **retired Jellyfin volume** and two are
-**retired Caddy volumes**, none referenced any more (kept only for rollback):
+Five named volumes exist. Three hold state that is painful to recreate; two are
+**retired Caddy volumes** that nothing references any more (kept only so a
+rollback can restore the old internal CA):
 
 | Volume | Holds |
 |---|---|
-| `travel-home-lab_jellyfin_config` | *(retired)* Jellyfin state before it moved to `/mnt/storage/jellyfin` |
+| `travel-home-lab_jellyfin_config` | Jellyfin library setup, users, watched state |
 | `travel-home-lab_gatus_data` | uptime history (`data.db` + WAL) |
 | `travel-home-lab_dozzle_data` | (empty) |
 | `travel-home-lab_caddy_data` | *(retired)* Caddy internal PKI / issued certs |
@@ -145,12 +145,12 @@ the **retired Jellyfin volume** and two are
   Plain `podman compose down` is safe.
 - **Do not run `podman volume prune`** unless the quadlet containers are running
   and holding the volumes. Prune removes any volume not referenced by a *running*
-  container — including the two live ones whenever the stack is stopped. The
-  three retired volumes are unreferenced and *are* prunable.
-- **Jellyfin's state is not a volume.** `/config` (library setup, users, watched
-  state) and `/cache` are bind mounts under `/mnt/storage/jellyfin` on the USB
-  SSD, because constant small writes to the SD card stalled playback. Back up
-  `/mnt/storage/jellyfin/config`; `cache` is throwaway.
+  container — including the three live ones whenever the stack is stopped. (The
+  two retired Caddy volumes are unreferenced and *are* prunable; that is fine.)
+- **Jellyfin config is a named volume.** `/config` (library setup, users, watched
+  state) is `travel-home-lab_jellyfin_config`; back it up. The throwaway
+  `/cache` is a bind mount under `/mnt/storage/jellyfin/cache` on the USB SSD,
+  keeping the heavy HLS/trickplay writes off the SD card.
 - **Do not run compose and the quadlets at the same time.** tailscaled holds
   `:443` and the compose Caddy would want it too, plus the container names would
   collide.

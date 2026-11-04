@@ -72,14 +72,14 @@
   ansible.builtin.set_fact:
     travel_lab_storage_available: "{{ travel_lab_storage_check.rc == 0 }}"
 
-# Only touch the SSD state paths when it is actually mounted; otherwise these
-# would be created on the SD card root.
-- name: Create the Jellyfin state directories
+# The throwaway Jellyfin cache lives on the SSD; only create it when the
+# storage is actually mounted, so it never lands on the SD card root.
+- name: Create the Jellyfin cache directory
   ansible.builtin.file:
     path: "{{ travel_lab_jellyfin_state }}/{{ item }}"
     state: directory
     mode: "0755"
-  loop: [config, cache]
+  loop: [cache]
   when: travel_lab_storage_available | bool
 
 - name: Warn when storage is not mounted
