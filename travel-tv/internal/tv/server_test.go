@@ -21,7 +21,7 @@ func testServer(t *testing.T, input *fakeInput, audio *fakeAudio) (*Service, htt
 		t.Fatal(err)
 	}
 	service := newTestService(input, audio)
-	server := NewServer(Config{WWW: dir}, service)
+	server := NewServer(Config{WWW: dir}, service, nil, "test")
 	return service, server.Handler()
 }
 

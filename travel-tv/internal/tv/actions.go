@@ -55,6 +55,7 @@ type Audio interface {
 // when the value is unknown, matching the old Python response.
 type Health struct {
 	OK        bool     `json:"ok"`
+	Version   string   `json:"version,omitempty"`
 	Wayland   *string  `json:"wayland"`
 	Wtype     bool     `json:"wtype"`
 	Wlrctl    bool     `json:"wlrctl"`

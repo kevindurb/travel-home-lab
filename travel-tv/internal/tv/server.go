@@ -1,6 +1,7 @@
 package tv
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -8,21 +9,29 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"path/filepath"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
 const maxActionBody = 8192
 
-// Server exposes the launcher, the phone remote and the CPR News proxy.
+var bluetoothAddressPattern = regexp.MustCompile(`^([0-9A-F]{2}:){5}[0-9A-F]{2}$`)
+
+// Server exposes the launcher, the phone remote, the CPR News proxy and the
+// Bluetooth settings API.
 type Server struct {
-	config  Config
-	service *Service
-	cpr     *httputil.ReverseProxy
+	config    Config
+	service   *Service
+	bluetooth Bluetooth
+	version   string
+	cpr       *httputil.ReverseProxy
 }
 
-// NewServer builds the HTTP server.
-func NewServer(config Config, service *Service) *Server {
+// NewServer builds the HTTP server. A nil Bluetooth client is replaced by one
+// that reports the feature as unavailable.
+func NewServer(config Config, service *Service, bluetooth Bluetooth, version string) *Server {
 	target, _ := url.Parse("http://stream2.cprnetwork.org:8000/cpr1_lo")
 	proxy := &httputil.ReverseProxy{
 		Director: func(request *http.Request) {
@@ -40,7 +49,10 @@ func NewServer(config Config, service *Service) *Server {
 			IdleConnTimeout:       90 * time.Second,
 		},
 	}
-	return &Server{config: config, service: service, cpr: proxy}
+	if bluetooth == nil {
+		bluetooth = unavailableBluetooth{}
+	}
+	return &Server{config: config, service: service, bluetooth: bluetooth, version: version, cpr: proxy}
 }
 
 // Handler returns the complete HTTP handler.
@@ -48,6 +60,10 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/health", s.handleHealth)
 	mux.HandleFunc("/api/action", s.handleAction)
+	mux.HandleFunc("/api/bluetooth", s.handleBluetoothStatus)
+	for _, action := range []string{"scan", "pair", "connect", "disconnect", "forget"} {
+		mux.HandleFunc("/api/bluetooth/"+action, s.handleBluetoothAction(action))
+	}
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]any{"ok": false, "error": "not found"})
 	})
@@ -70,7 +86,79 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]any{"ok": false, "error": "not found"})
 		return
 	}
-	writeJSON(w, http.StatusOK, s.service.Health(r.Context()))
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	health := s.service.Health(ctx)
+	health.Version = s.version
+	writeJSON(w, http.StatusOK, health)
+}
+
+// handleBluetoothStatus reports the adapter and every known controller.
+func (s *Server) handleBluetoothStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusNotFound, map[string]any{"ok": false, "error": "not found"})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	writeJSON(w, http.StatusOK, s.bluetooth.Status(ctx))
+}
+
+// handleBluetoothAction runs one BlueZ request. Pairing blocks until the
+// controller answers, so the timeout is generous and the page disables the
+// button until the response returns.
+func (s *Server) handleBluetoothAction(action string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeJSON(w, http.StatusNotFound, map[string]any{"ok": false, "error": "not found"})
+			return
+		}
+
+		r.Body = http.MaxBytesReader(w, r.Body, maxActionBody)
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "invalid body size"})
+			return
+		}
+
+		var payload struct {
+			Address string `json:"address"`
+			Seconds int    `json:"seconds"`
+		}
+		if len(body) > 0 {
+			if err := json.Unmarshal(body, &payload); err != nil {
+				writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "invalid request"})
+				return
+			}
+		}
+
+		address := strings.ToUpper(strings.TrimSpace(payload.Address))
+		if action != "scan" && !bluetoothAddressPattern.MatchString(address) {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "invalid Bluetooth address"})
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
+		defer cancel()
+
+		switch action {
+		case "scan":
+			err = s.bluetooth.Scan(ctx, time.Duration(payload.Seconds)*time.Second)
+		case "pair":
+			err = s.bluetooth.Pair(ctx, address)
+		case "connect":
+			err = s.bluetooth.Connect(ctx, address)
+		case "disconnect":
+			err = s.bluetooth.Disconnect(ctx, address)
+		case "forget":
+			err = s.bluetooth.Forget(ctx, address)
+		}
+		if err != nil {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	}
 }
 
 func (s *Server) handleAction(w http.ResponseWriter, r *http.Request) {

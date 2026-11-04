@@ -19,7 +19,7 @@ func main() {
 	config := tv.ConfigFromEnv()
 
 	service := tv.NewService(tv.NewWayland(), tv.NewPulseAudio(), config.Settle)
-	handler := tv.NewServer(config, service).Handler()
+	handler := tv.NewServer(config, service, tv.NewBluetooth(), version).Handler()
 
 	server := &http.Server{
 		Addr:              config.Listen,
