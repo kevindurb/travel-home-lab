@@ -113,6 +113,55 @@ travel_lab_tv_tiles:
     icon: spotify
     accent: "#1DB954"
     url: "https://open.spotify.com/"
+  - id: weather
+    label: Weather
+    accent: "#7CC7FF"
+    action: weather
+    url: "forecast.html"
+  - id: radio
+    label: Radio
+    icon: radio
+    accent: "#E76F51"
+    url: "radio.html"
+  - id: pbskids
+    label: PBS Kids
+    icon: pbskids
+    accent: "#2638C4"
+    url: "https://pbskids.org/videos/"
+
+# Radio page stations. Use HTTPS URLs where possible; CPR News is proxied by
+# the travel-tv nginx container because its stream is HTTP-only.
+travel_lab_radio_stations:
+  - id: groove-salad
+    name: Groove Salad
+    subtitle: SomaFM
+    accent: "#7FB2A6"
+    url: "https://ice1.somafm.com/groovesalad-128-mp3"
+  - id: drone-zone
+    name: Drone Zone
+    subtitle: SomaFM
+    accent: "#6C8EBF"
+    url: "https://ice1.somafm.com/dronezone-128-mp3"
+  - id: nts-1
+    name: NTS 1
+    subtitle: London
+    accent: "#E4572E"
+    url: "https://stream-relay-geo.ntslive.net/stream"
+  - id: radio-paradise
+    name: Radio Paradise
+    subtitle: Eclectic
+    accent: "#3A7CA5"
+    url: "https://stream.radioparadise.com/aac-320"
+  - id: cpr-news
+    name: CPR News
+    subtitle: Colorado
+    accent: "#1B998B"
+    url: "/radio/cpr-news"
+  - id: kuvo
+    name: KUVO Jazz
+    subtitle: Denver
+    accent: "#8E6C88"
+    url: "https://kuvo.streamguys1.com/kuvo-aac-128"
 
 # --- ingress: Tailscale Services --------------------------------------------
 # One Tailscale Service per app, replacing the old Caddy reverse proxy. Each

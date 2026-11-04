@@ -329,6 +329,192 @@
       });
   }
 
+  // --- shared navigation --------------------------------------------------
+  function nearestInDirection(items, current, key) {
+    const cr = current.getBoundingClientRect();
+    const cx = cr.left + cr.width / 2;
+    const cy = cr.top + cr.height / 2;
+    let best = null;
+
+    for (const item of items) {
+      if (item === current) continue;
+      const r = item.getBoundingClientRect();
+      const dx = r.left + r.width / 2 - cx;
+      const dy = r.top + r.height / 2 - cy;
+      let primary;
+      let cross;
+
+      if (key === 'ArrowRight') {
+        if (dx <= 0) continue;
+        primary = dx;
+        cross = Math.abs(dy);
+      } else if (key === 'ArrowLeft') {
+        if (dx >= 0) continue;
+        primary = -dx;
+        cross = Math.abs(dy);
+      } else if (key === 'ArrowDown') {
+        if (dy <= 0) continue;
+        primary = dy;
+        cross = Math.abs(dx);
+      } else {
+        if (dy >= 0) continue;
+        primary = -dy;
+        cross = Math.abs(dx);
+      }
+
+      const score = primary + cross * 2;
+      if (!best || score < best.score) best = { item, score };
+    }
+
+    return best ? best.item : null;
+  }
+
+  // --- radio --------------------------------------------------------------
+  function wireRadio() {
+    const audio = document.querySelector('[data-audio]');
+    const stations = Array.from(document.querySelectorAll('[data-station]'));
+    if (!audio || !stations.length) return;
+
+    const nowName = document.querySelector('[data-now-name]');
+    const nowSub = document.querySelector('[data-now-sub]');
+    const play = document.querySelector('[data-play]');
+    const prev = document.querySelector('[data-prev]');
+    const next = document.querySelector('[data-next]');
+    const volume = document.querySelector('[data-volume]');
+
+    let index = -1;
+    let current = -1;
+
+    audio.volume = 0.7;
+    if (volume) volume.value = String(audio.volume);
+
+    function setPlaying(playing) {
+      if (!play) return;
+      play.dataset.playing = String(playing);
+      play.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+    }
+
+    function setNow(i) {
+      const station = stations[i];
+      if (!station) return;
+      if (nowName) nowName.textContent = station.dataset.name || '';
+      if (nowSub) nowSub.textContent = station.dataset.subtitle || '';
+      stations.forEach((button, j) => {
+        button.classList.toggle('is-active', j === i);
+        button.setAttribute('aria-pressed', String(j === i));
+      });
+    }
+
+    function playAudio() {
+      const promise = audio.play();
+      if (promise && promise.catch) {
+        promise.catch(() => {
+          setPlaying(false);
+          if (nowSub) nowSub.textContent = 'Stream unavailable';
+        });
+      }
+    }
+
+    function select(i, autoplay = true) {
+      if (i < 0) i = 0;
+      if (i >= stations.length) i = stations.length - 1;
+      const station = stations[i];
+      if (!station) return;
+      const src = new URL(station.dataset.url, location.href).href;
+      const same = current === i && audio.src === src;
+      index = i;
+      current = i;
+      setNow(i);
+      if (!same) {
+        audio.src = station.dataset.url;
+        audio.load();
+      }
+      if (autoplay) playAudio();
+    }
+
+    function toggle() {
+      if (current < 0) {
+        select(index >= 0 ? index : 0, true);
+        return;
+      }
+      if (audio.paused) playAudio();
+      else audio.pause();
+    }
+
+    function step(delta) {
+      if (current < 0) {
+        const start = index >= 0 ? index : 0;
+        select((start + delta + stations.length) % stations.length, true);
+        return;
+      }
+      select((current + delta + stations.length) % stations.length, true);
+    }
+
+    function setVolume(value) {
+      audio.volume = Math.min(1, Math.max(0, value));
+      if (volume) volume.value = String(audio.volume);
+    }
+
+    function focusStation(next) {
+      if (!next) return;
+      stations.forEach((button) => { button.tabIndex = -1; });
+      index = stations.indexOf(next);
+      next.tabIndex = 0;
+      next.focus();
+      next.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+
+    stations.forEach((button, i) => {
+      button.tabIndex = i === 0 ? 0 : -1;
+      button.addEventListener('click', () => select(i, true));
+      button.addEventListener('focus', () => { index = i; });
+    });
+
+    if (play) play.addEventListener('click', toggle);
+    if (prev) prev.addEventListener('click', () => step(-1));
+    if (next) next.addEventListener('click', () => step(1));
+    if (volume) volume.addEventListener('input', () => setVolume(Number(volume.value)));
+
+    audio.addEventListener('playing', () => setPlaying(true));
+    audio.addEventListener('pause', () => setPlaying(false));
+    audio.addEventListener('error', () => {
+      setPlaying(false);
+      if (nowSub) nowSub.textContent = 'Stream unavailable';
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Backspace' || event.key === 'Escape') {
+        event.preventDefault();
+        window.location.href = 'index.html';
+        return;
+      }
+      if (event.code === 'Space' && !event.target.closest('input')) {
+        event.preventDefault();
+        toggle();
+        return;
+      }
+      if ((event.key === '+' || event.key === '=') && !event.target.closest('input')) {
+        event.preventDefault();
+        setVolume(audio.volume + 0.05);
+        return;
+      }
+      if ((event.key === '-' || event.key === '_') && !event.target.closest('input')) {
+        event.preventDefault();
+        setVolume(audio.volume - 0.05);
+        return;
+      }
+      if (['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
+        const active = document.activeElement.closest('[data-station]');
+        if (!active) return;
+        event.preventDefault();
+        const target = nearestInDirection(stations, active, event.key);
+        if (target) focusStation(target);
+      }
+    });
+
+    requestAnimationFrame(() => stations[0].focus());
+  }
+
   // --- page wiring --------------------------------------------------------
   if (page === 'wifi' || page === 'forecast') {
     const back = document.querySelector('[data-back]');
@@ -343,6 +529,11 @@
       loadWeather();
       setInterval(() => loadWeather(true), WEATHER_TTL);
     }
+    return;
+  }
+
+  if (page === 'radio') {
+    wireRadio();
     return;
   }
 
@@ -368,50 +559,11 @@
     tile.addEventListener('focus', () => { index = i; });
   });
 
-  function closestInDirection(current, key) {
-    const cr = current.getBoundingClientRect();
-    const cx = cr.left + cr.width / 2;
-    const cy = cr.top + cr.height / 2;
-    let best = null;
-
-    for (const tile of tiles) {
-      if (tile === current) continue;
-      const r = tile.getBoundingClientRect();
-      const dx = r.left + r.width / 2 - cx;
-      const dy = r.top + r.height / 2 - cy;
-      let primary;
-      let cross;
-
-      if (key === 'ArrowRight') {
-        if (dx <= 0) continue;
-        primary = dx;
-        cross = Math.abs(dy);
-      } else if (key === 'ArrowLeft') {
-        if (dx >= 0) continue;
-        primary = -dx;
-        cross = Math.abs(dy);
-      } else if (key === 'ArrowDown') {
-        if (dy <= 0) continue;
-        primary = dy;
-        cross = Math.abs(dx);
-      } else {
-        if (dy >= 0) continue;
-        primary = -dy;
-        cross = Math.abs(dx);
-      }
-
-      const score = primary + cross * 2;
-      if (!best || score < best.score) best = { tile, score };
-    }
-
-    return best ? best.tile : null;
-  }
-
   document.addEventListener('keydown', (event) => {
     if (!['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
     event.preventDefault();
-    const current = document.activeElement.closest('[data-tile]') || tiles[index];
-    const next = closestInDirection(current, event.key);
+    const currentTile = document.activeElement.closest('[data-tile]') || tiles[index];
+    const next = nearestInDirection(tiles, currentTile, event.key);
     if (next) focusTile(next);
   });
 

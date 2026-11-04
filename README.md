@@ -90,7 +90,8 @@ The units use the systemd `%h` specifier, so nothing is tied to the username.
 `just site` installs a Cage + Firefox kiosk on the Pi's HDMI output. It waits
 for a connected display and the `https://travel-tv.<tailnet>` page, then shows
 the 10ft launcher (Jellyfin, YouTube, Netflix, Disney+, Spotify, Kiwix, a
-Wi-Fi QR and a weather/forecast tile). No desktop environment is used.
+Wi-Fi QR, weather/forecast, Radio and PBS Kids). No desktop environment is
+used.
 
 Prerequisites: create `svc:travel-tv` in the Tailscale admin console and set
 the Wi-Fi vault values with `just vault-edit`. Full details, one-time

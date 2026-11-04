@@ -11,6 +11,17 @@ server {
     add_header Cache-Control "no-store" always;
     add_header X-Content-Type-Options "nosniff" always;
 
+    # CPR News is HTTP-only upstream; proxy it so the HTTPS radio page can
+    # play it without mixed-content blocking.
+    location = /radio/cpr-news {
+        proxy_pass http://stream2.cprnetwork.org:8000/cpr1_lo;
+        proxy_http_version 1.1;
+        proxy_set_header Host stream2.cprnetwork.org;
+        proxy_set_header Connection "";
+        proxy_buffering off;
+        proxy_read_timeout 1h;
+    }
+
     location / {
         try_files $uri $uri/ =404;
     }

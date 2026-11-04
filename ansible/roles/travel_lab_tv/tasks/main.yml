@@ -150,4 +150,5 @@
   loop:
     - forecast.html
     - wifi.html
+    - radio.html
     - index.html

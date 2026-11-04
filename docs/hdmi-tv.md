@@ -90,24 +90,29 @@ travel_lab_tv_tiles:
   - { label: Read, icon: kiwix, accent: "#00A6A6", url: "https://travel-kiwix...." }
   - { label: Wi-Fi, icon: wifi, accent: "#FFC46B", action: wifi, url: "wifi.html" }
   - { label: Spotify, icon: spotify, accent: "#1DB954", url: "https://open.spotify.com/" }
+  - { label: Weather, accent: "#7CC7FF", action: weather, url: "forecast.html" }
+  - { label: Radio, icon: radio, accent: "#E76F51", url: "radio.html" }
+  - { label: PBS Kids, icon: pbskids, accent: "#2638C4", url: "https://pbskids.org/videos/" }
 ```
 
-The grid is **4 columns × 2 rows** at 1080p:
+The grid is **4 columns × 3 rows** at 1080p:
 
 - Row 1: Jellyfin, YouTube, Netflix, Disney+
 - Row 2: Read, Wi-Fi, Spotify, Weather
+- Row 3: Radio, PBS Kids, empty, empty
 
-The grid is full. Adding another tile starts a third row and the grid scrolls
-(the header and footer stay fixed). Arrow keys move focus, Enter opens, and the
-focus navigation is geometry-based so the full grid and the weather tile do not
-break it.
+All ten tiles fit on one screen; the last two cells are intentionally empty for
+future apps. Adding one or two tiles fills them; a thirteenth tile starts a
+fourth row and the grid scrolls (the header and footer stay fixed). Arrow keys
+move focus, Enter opens, and the focus navigation is geometry-based so the full
+grid and the weather tile do not break it.
 
 Tile labels are text-only by design — no subtitles, descriptions or “web app”
 badges. To add a tile, add an entry to the list; the order is row-major.
 
 ### Wi-Fi QR
 
-The Wi-Fi tile is a normal one-cell tile with a ~160px (15vh) preview QR,
+The Wi-Fi tile is a normal one-cell tile with a ~100px (9.5vh) preview QR,
 `WI-FI`, and the SSID. Selecting it opens `wifi.html` with a 540px code. The
 password is never rendered as text; the QR payload uses the standard
 `WIFI:T:WPA;S:...;P:...;H:false;;` form and is escaped by
@@ -152,6 +157,39 @@ the Pi's.
 `Backspace` / `Esc` / `Alt+←` return from the forecast page; `Alt+Home` returns
 to the launcher.
 
+### Radio
+
+The Radio tile opens `radio.html`, a local page with a curated six-station
+lineup. No external app or login is involved; playback uses the browser's
+`<audio>` element and the Pi's HDMI audio path.
+
+Stations are defined in `group_vars/travel_lab.yml`:
+
+```yaml
+travel_lab_radio_stations:
+  - { name: Groove Salad, subtitle: SomaFM, accent: "#7FB2A6",
+      url: "https://ice1.somafm.com/groovesalad-128-mp3" }
+  - { name: Drone Zone, subtitle: SomaFM, accent: "#6C8EBF",
+      url: "https://ice1.somafm.com/dronezone-128-mp3" }
+  - { name: NTS 1, subtitle: London, accent: "#E4572E",
+      url: "https://stream-relay-geo.ntslive.net/stream" }
+  - { name: Radio Paradise, subtitle: Eclectic, accent: "#3A7CA5",
+      url: "https://stream.radioparadise.com/aac-320" }
+  - { name: CPR News, subtitle: Colorado, accent: "#1B998B",
+      url: "/radio/cpr-news" }
+  - { name: KUVO Jazz, subtitle: Denver, accent: "#8E6C88",
+      url: "https://kuvo.streamguys1.com/kuvo-aac-128" }
+```
+
+The page has a large play/pause button, previous/next station, a volume slider,
+and the six station tiles. Enter plays the focused station, Space toggles
+play/pause, `+` / `-` adjusts volume, and `Backspace` / `Esc` returns.
+
+CPR News is HTTP-only upstream, so the `travel-tv` nginx container proxies
+`/radio/cpr-news` to `stream2.cprnetwork.org`; the other stations are direct
+HTTPS streams. All stations require internet, but none require an account or
+DRM.
+
 ## 5. External services
 
 - **YouTube** uses the unofficial Leanback/TV UI at `youtube.com/tv`. It is
@@ -162,6 +200,11 @@ to the launcher.
   `disneyplus.com/begin` are device-activation pages, not browsing interfaces.
   The tiles open the normal desktop web apps. Use `Ctrl++` once per site to
   zoom; Firefox stores the per-site zoom in the kiosk profile.
+- **PBS Kids** opens `pbskids.org/videos/` — free, no login, full episodes
+  (Daniel Tiger, Wild Kratts, etc.). It is the closest web equivalent of the
+  Roku PBS Kids app, though it may not have every episode. The adult PBS site
+  is `pbs.org/video/`; some episodes are free, full seasons usually need PBS
+  Passport, and Live TV is at `pbs.org/livestream/`.
 - **Spotify** opens the web player at `open.spotify.com`; log in once. It is a
   desktop layout and playback needs Widevine. Use `Ctrl++` if the player is too
   small on the TV.
@@ -180,7 +223,7 @@ The profile is persistent, so these are done once (or after clearing it):
    to TV mode too; if it does, use a dedicated `tv` Jellyfin user.
 2. Log in to Netflix, Disney+, Spotify and (if needed) YouTube.
 3. On Netflix, Disney+ and Spotify, press `Ctrl++` once or twice to zoom the desktop UI.
-4. Test Jellyfin/YouTube/Netflix/Disney+/Spotify playback and audio before travelling.
+4. Test Jellyfin/YouTube/Netflix/Disney+/Spotify, PBS Kids and the Radio page before travelling.
 
 Keyboard shortcuts:
 
@@ -190,7 +233,10 @@ Keyboard shortcuts:
 | Enter | open |
 | `Alt+←` | browser back |
 | `Alt+Home` | launcher (homepage) |
-| `Backspace` / `Esc` | back from the Wi-Fi and forecast pages |
+| `Backspace` / `Esc` | back from the Wi-Fi, forecast and radio pages |
+| Radio: Enter | play the focused station |
+| Radio: Space | play/pause |
+| Radio: `+` / `-` | volume |
 
 A later `keyd` mapping can translate an air-mouse's Back/Home buttons if the
 remote does not send the browser shortcuts.
