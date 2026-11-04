@@ -1,7 +1,7 @@
 # Travel TV (HDMI kiosk)
 
 The Travel TV turns the Pi's HDMI output into a 10ft hotel-room launcher:
-Jellyfin, YouTube, Netflix, Disney+, Read (Kiwix), a Wi-Fi QR, and a
+Jellyfin, YouTube, Netflix, Disney+, Spotify, Read (Kiwix), a Wi-Fi QR, and a
 weather tile with a 12-hour/5-day forecast. It is served by a small nginx
 container and displayed by Cage + Firefox on `tty1`, with no desktop
 environment.
@@ -89,17 +89,18 @@ travel_lab_tv_tiles:
   - { label: Disney+, icon: disney, accent: "#113CCF", url: "https://www.disneyplus.com/" }
   - { label: Read, icon: kiwix, accent: "#00A6A6", url: "https://travel-kiwix...." }
   - { label: Wi-Fi, icon: wifi, accent: "#FFC46B", action: wifi, url: "wifi.html" }
+  - { label: Spotify, icon: spotify, accent: "#1DB954", url: "https://open.spotify.com/" }
 ```
 
 The grid is **4 columns × 2 rows** at 1080p:
 
 - Row 1: Jellyfin, YouTube, Netflix, Disney+
-- Row 2: Read, Wi-Fi, Weather, **empty**
+- Row 2: Read, Wi-Fi, Spotify, Weather
 
-The empty eighth cell is intentional. Adding a tile fills it; more tiles create
-a third row and the grid scrolls (the header and footer stay fixed). Arrow keys
-move focus, Enter opens, and the focus navigation is geometry-based so the
-empty cell and the weather tile do not break it.
+The grid is full. Adding another tile starts a third row and the grid scrolls
+(the header and footer stay fixed). Arrow keys move focus, Enter opens, and the
+focus navigation is geometry-based so the full grid and the weather tile do not
+break it.
 
 Tile labels are text-only by design — no subtitles, descriptions or “web app”
 badges. To add a tile, add an entry to the list; the order is row-major.
@@ -161,7 +162,10 @@ to the launcher.
   `disneyplus.com/begin` are device-activation pages, not browsing interfaces.
   The tiles open the normal desktop web apps. Use `Ctrl++` once per site to
   zoom; Firefox stores the per-site zoom in the kiosk profile.
-- Netflix/Disney+ playback needs Widevine. Raspberry Pi OS normally provides
+- **Spotify** opens the web player at `open.spotify.com`; log in once. It is a
+  desktop layout and playback needs Widevine. Use `Ctrl++` if the player is too
+  small on the TV.
+- Netflix/Disney+/Spotify playback needs Widevine. Raspberry Pi OS normally provides
   `libwidevinecdm0`; the deploy tries to install it and warns if it is
   unavailable. Linux browsers are commonly limited to 720p.
 - If the desktop web apps feel wrong on the TV, use a streaming stick on
@@ -174,9 +178,9 @@ The profile is persistent, so these are done once (or after clearing it):
 1. Open **Jellyfin**, log in, and set **Settings → Display → Display
    Mode → TV**. Verify this does not switch your laptop's Jellyfin web session
    to TV mode too; if it does, use a dedicated `tv` Jellyfin user.
-2. Log in to Netflix, Disney+ and (if needed) YouTube.
-3. On Netflix and Disney+, press `Ctrl++` once or twice to zoom the desktop UI.
-4. Test Jellyfin/YouTube/Netflix/Disney+ playback and audio before travelling.
+2. Log in to Netflix, Disney+, Spotify and (if needed) YouTube.
+3. On Netflix, Disney+ and Spotify, press `Ctrl++` once or twice to zoom the desktop UI.
+4. Test Jellyfin/YouTube/Netflix/Disney+/Spotify playback and audio before travelling.
 
 Keyboard shortcuts:
 

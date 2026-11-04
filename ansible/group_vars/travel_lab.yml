@@ -108,6 +108,11 @@ travel_lab_tv_tiles:
     accent: "#FFC46B"
     action: wifi
     url: "wifi.html"
+  - id: spotify
+    label: Spotify
+    icon: spotify
+    accent: "#1DB954"
+    url: "https://open.spotify.com/"
 
 # --- ingress: Tailscale Services --------------------------------------------
 # One Tailscale Service per app, replacing the old Caddy reverse proxy. Each
