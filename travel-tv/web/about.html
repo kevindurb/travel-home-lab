@@ -19,39 +19,39 @@
     <div class="about-hero">
       <div class="about-title">Travel Lab</div>
       <div class="about-sub">
-        {{ ansible_facts['model'] | default('Raspberry Pi', true) }}
-        &middot; {{ ansible_facts['distribution'] | default('Linux') }}
-        {{ ansible_facts['distribution_version'] | default('') }}
+        {{.About.Model}}
+        &middot; {{.About.Distribution}}
+        {{.About.DistributionVersion}}
       </div>
     </div>
 
     <dl class="about-grid">
       <div class="about-item">
         <dt>Travel TV</dt>
-        <dd id="about-version">&mdash;</dd>
+        <dd id="about-version">{{.Version}}</dd>
       </div>
       <div class="about-item">
         <dt>Kernel</dt>
-        <dd>{{ ansible_facts['kernel'] | default('unknown') }}</dd>
+        <dd>{{.About.Kernel}}</dd>
       </div>
       <div class="about-item">
         <dt>Tailnet</dt>
-        <dd>{{ travel_lab_tailnet_domain }}</dd>
+        <dd>{{.About.Tailnet}}</dd>
       </div>
       <div class="about-item">
         <dt>Kiosk</dt>
-        <dd>Cage + {{ travel_lab_tv_firefox_bin }}</dd>
+        <dd>Cage + {{.About.Firefox}}</dd>
       </div>
     </dl>
 
     <div class="about-section-title">Services</div>
     <div class="about-services">
-      {% for key, svc in travel_lab_tailscale_services | dictsort %}
+      {{range .About.Services}}
       <div class="about-service">
-        <span class="about-service-name">{{ svc.service }}</span>
-        <span class="about-service-url">https://{{ svc.service }}.{{ travel_lab_tailnet_domain }}</span>
+        <span class="about-service-name">{{.Name}}</span>
+        <span class="about-service-url">{{.URL}}</span>
       </div>
-      {% endfor %}
+      {{end}}
     </div>
   </main>
 

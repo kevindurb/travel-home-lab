@@ -2,7 +2,7 @@
 # Stop and remove the HDMI kiosk. This deliberately leaves:
 #   * the kiosk packages (cage, Firefox, PipeWire, Widevine)
 #   * ~/.local/share/travel-tv/firefox (Jellyfin/Netflix logins)
-#   * the rendered page under ~/.config/travel-tv
+#   * ~/.config/travel-tv/config.yml (page data, including the Wi-Fi PSK)
 #   * the travel-tv container (page + phone remote; removed by `just teardown`)
 #
 #   ansible-playbook tv-teardown.yml --ask-become-pass
@@ -34,7 +34,7 @@
     - name: Report what was left behind
       ansible.builtin.debug:
         msg:
-          - "Kiosk removed; packages, Firefox profile and page files remain."
+          - "Kiosk removed; packages, Firefox profile and page config remain."
           - "The travel-tv container is removed by `just teardown`."
 
 - name: Remove legacy Travel TV phone-remote artifacts
@@ -59,6 +59,7 @@
         - "{{ travel_lab_home }}/.local/bin/travel-tv-remote"
         - "{{ travel_lab_config_root }}/travel-tv/nginx.conf"
         - "{{ travel_lab_config_root }}/travel-tv/run"
+        - "{{ travel_lab_config_root }}/travel-tv/www"
 
     - name: Reload the user systemd manager
       ansible.builtin.systemd_service:

@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -22,16 +21,40 @@ var bluetoothAddressPattern = regexp.MustCompile(`^([0-9A-F]{2}:){5}[0-9A-F]{2}$
 // Server exposes the launcher, the phone remote, the CPR News proxy and the
 // Bluetooth settings API.
 type Server struct {
-	config    Config
 	service   *Service
 	bluetooth Bluetooth
 	version   string
 	cpr       *httputil.ReverseProxy
+	pages     map[string][]byte
+	assets    map[string][]byte
+	qrs       map[string][]byte
 }
 
-// NewServer builds the HTTP server. A nil Bluetooth client is replaced by one
-// that reports the feature as unavailable.
-func NewServer(config Config, service *Service, bluetooth Bluetooth, version string) *Server {
+// NewServer builds the HTTP server. The launcher pages, static assets and QR
+// codes are rendered once, at startup, from the embedded web package and the
+// Ansible-rendered Config. A nil Bluetooth client is replaced by one that
+// reports the feature as unavailable.
+func NewServer(config Config, service *Service, bluetooth Bluetooth, version string) (*Server, error) {
+	pages, err := renderPages(config, version)
+	if err != nil {
+		return nil, err
+	}
+	assets, err := loadAssets()
+	if err != nil {
+		return nil, err
+	}
+	qrs := make(map[string][]byte, 2)
+	if config.RemoteURL != "" {
+		if qrs["remote-qr.svg"], err = qrSVG(config.RemoteURL); err != nil {
+			return nil, err
+		}
+	}
+	if config.WiFiReady() {
+		if qrs["wifi-qr.svg"], err = qrSVG(config.WiFiPayload()); err != nil {
+			return nil, err
+		}
+	}
+
 	target, _ := url.Parse("http://stream2.cprnetwork.org:8000/cpr1_lo")
 	proxy := &httputil.ReverseProxy{
 		Director: func(request *http.Request) {
@@ -52,7 +75,15 @@ func NewServer(config Config, service *Service, bluetooth Bluetooth, version str
 	if bluetooth == nil {
 		bluetooth = unavailableBluetooth{}
 	}
-	return &Server{config: config, service: service, bluetooth: bluetooth, version: version, cpr: proxy}
+	return &Server{
+		service:   service,
+		bluetooth: bluetooth,
+		version:   version,
+		cpr:       proxy,
+		pages:     pages,
+		assets:    assets,
+		qrs:       qrs,
+	}, nil
 }
 
 // Handler returns the complete HTTP handler.
@@ -69,7 +100,9 @@ func (s *Server) Handler() http.Handler {
 	})
 	mux.HandleFunc("/radio/cpr-news", s.handleCPRNews)
 	mux.HandleFunc("/r", s.handleRemoteShort)
-	mux.Handle("/", http.FileServer(http.Dir(s.config.WWW)))
+	mux.HandleFunc("/wifi-qr.svg", s.handleQR("wifi-qr.svg"))
+	mux.HandleFunc("/remote-qr.svg", s.handleQR("remote-qr.svg"))
+	mux.HandleFunc("/", s.handleFile)
 	return s.headers(mux)
 }
 
@@ -204,7 +237,72 @@ func (s *Server) handleRemoteShort(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]any{"ok": false, "error": "not found"})
 		return
 	}
-	http.ServeFile(w, r, filepath.Join(s.config.WWW, "remote.html"))
+	s.writeBody(w, r, "remote.html", s.pages["remote.html"])
+}
+
+// handleFile serves the rendered pages (by name) and the embedded assets.
+func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		http.NotFound(w, r)
+		return
+	}
+
+	name := strings.TrimPrefix(r.URL.Path, "/")
+	if name == "" {
+		name = "index.html"
+	}
+	if body, ok := s.pages[name]; ok {
+		s.writeBody(w, r, name, body)
+		return
+	}
+	if body, ok := s.assets[name]; ok {
+		s.writeBody(w, r, name, body)
+		return
+	}
+	http.NotFound(w, r)
+}
+
+func (s *Server) handleQR(name string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.NotFound(w, r)
+			return
+		}
+		body, ok := s.qrs[name]
+		if !ok {
+			http.NotFound(w, r)
+			return
+		}
+		s.writeBody(w, r, name, body)
+	}
+}
+
+func (s *Server) writeBody(w http.ResponseWriter, r *http.Request, name string, body []byte) {
+	if body == nil {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", contentType(name))
+	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+	w.WriteHeader(http.StatusOK)
+	if r.Method != http.MethodHead {
+		_, _ = w.Write(body)
+	}
+}
+
+func contentType(name string) string {
+	switch {
+	case strings.HasSuffix(name, ".html"):
+		return "text/html; charset=utf-8"
+	case strings.HasSuffix(name, ".css"):
+		return "text/css; charset=utf-8"
+	case strings.HasSuffix(name, ".js"):
+		return "text/javascript; charset=utf-8"
+	case strings.HasSuffix(name, ".svg"):
+		return "image/svg+xml; charset=utf-8"
+	default:
+		return "application/octet-stream"
+	}
 }
 
 func (s *Server) handleCPRNews(w http.ResponseWriter, r *http.Request) {

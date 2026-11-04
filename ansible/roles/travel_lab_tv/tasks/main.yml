@@ -1,14 +1,9 @@
 ---
-# Render the Travel TV launcher, its QR codes and the Firefox kiosk profile.
-# Runs as the stack user (no become); the kiosk itself is installed by the
-# travel_lab_tv_host role in the host play. The launcher+remote Go app is the
-# travel-tv quadlet owned by the travel_lab role.
-
-- name: Create the Travel TV page directory
-  ansible.builtin.file:
-    path: "{{ travel_lab_tv_www }}"
-    state: directory
-    mode: "0755"
+# Install the Firefox kiosk profile and PipeWire endpoints. Runs as the stack
+# user (no become); the kiosk itself is installed by the travel_lab_tv_host
+# role in the host play. The launcher+remote Go app is the travel-tv quadlet
+# owned by the travel_lab role, and its page data is the config file rendered
+# by that role (roles/travel_lab/templates/travel-tv-config.yml.j2).
 
 - name: Create the Firefox kiosk profile directories
   ansible.builtin.file:
@@ -46,7 +41,7 @@
   failed_when: false
   environment: "{{ travel_lab_user_env }}"
 
-- name: Remove the legacy Python remote, nginx config and socket directory
+- name: Remove the legacy Python remote, nginx config, socket and page directories
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
@@ -55,6 +50,8 @@
     - "{{ travel_lab_home }}/.local/bin/travel-tv-remote"
     - "{{ travel_lab_config_root }}/travel-tv/nginx.conf"
     - "{{ travel_lab_config_root }}/travel-tv/run"
+    # The pre-Go role rendered the launcher and QR SVGs into this directory.
+    - "{{ travel_lab_config_root }}/travel-tv/www"
 
 - name: Reload the user systemd manager after removing the legacy unit
   ansible.builtin.systemd_service:
@@ -62,126 +59,6 @@
     scope: user
   when: not ansible_check_mode
   environment: "{{ travel_lab_user_env }}"
-
-# --- QR codes ---------------------------------------------------------------
-# qrencode runs on the controller. The Wi-Fi PSK is never passed to the Pi in
-# plaintext; only the rendered SVGs are copied across.
-- name: Check for qrencode on the controller
-  ansible.builtin.command: "{{ travel_lab_tv_qrencode_bin }} --version"
-  delegate_to: localhost
-  check_mode: false
-  changed_when: false
-  failed_when: false
-  register: travel_lab_tv_qrencode
-
-- name: Require qrencode to render the QR codes
-  ansible.builtin.assert:
-    that:
-      - travel_lab_tv_qrencode.rc == 0
-    fail_msg: >-
-      qrencode is required on the workstation to render the Travel TV QR
-      codes. Install it (brew install qrencode) or set
-      travel_lab_tv_qrencode_bin.
-
-# The remote QR has no secrets, so it is rendered every deploy.
-- name: Create a temporary remote QR file on the controller
-  ansible.builtin.tempfile:
-    state: file
-    suffix: .svg
-  delegate_to: localhost
-  register: travel_lab_tv_remote_qr_tmp
-  changed_when: false
-  when: not ansible_check_mode
-
-- name: Render the phone remote QR
-  ansible.builtin.command:
-    argv:
-      - "{{ travel_lab_tv_qrencode_bin }}"
-      - -t
-      - SVG
-      - -l
-      - M
-      - -m
-      - "4"
-      - -s
-      - "10"
-      - -o
-      - "{{ travel_lab_tv_remote_qr_tmp.path | default('') }}"
-      - "{{ travel_lab_tv_remote_qr_url }}"
-  delegate_to: localhost
-  changed_when: false
-  when: not ansible_check_mode
-
-- name: Install the phone remote QR
-  ansible.builtin.copy:
-    src: "{{ travel_lab_tv_remote_qr_tmp.path | default('') }}"
-    dest: "{{ travel_lab_tv_www }}/remote-qr.svg"
-    mode: "0644"
-  when: not ansible_check_mode
-
-- name: Remove the temporary remote QR
-  ansible.builtin.file:
-    path: "{{ travel_lab_tv_remote_qr_tmp.path | default('') }}"
-    state: absent
-  delegate_to: localhost
-  changed_when: false
-  when: not ansible_check_mode
-
-- name: Create a temporary Wi-Fi QR file on the controller
-  ansible.builtin.tempfile:
-    state: file
-    suffix: .svg
-  delegate_to: localhost
-  register: travel_lab_tv_qr_tmp
-  changed_when: false
-  when:
-    - travel_lab_tv_wifi_ready | bool
-    - not ansible_check_mode
-
-- name: Render the Wi-Fi join QR
-  ansible.builtin.command:
-    argv:
-      - "{{ travel_lab_tv_qrencode_bin }}"
-      - -t
-      - SVG
-      - -l
-      - M
-      - -m
-      - "4"
-      - -s
-      - "10"
-      - -o
-      - "{{ travel_lab_tv_qr_tmp.path | default('') }}"
-      - >-
-        {{ travel_lab_wifi_ssid | wifi_qr(
-             travel_lab_wifi_psk,
-             travel_lab_wifi_security,
-             travel_lab_wifi_hidden) }}
-  delegate_to: localhost
-  no_log: true
-  changed_when: false
-  when:
-    - travel_lab_tv_wifi_ready | bool
-    - not ansible_check_mode
-
-- name: Install the Wi-Fi QR
-  ansible.builtin.copy:
-    src: "{{ travel_lab_tv_qr_tmp.path | default('') }}"
-    dest: "{{ travel_lab_tv_www }}/wifi-qr.svg"
-    mode: "0644"
-  when:
-    - travel_lab_tv_wifi_ready | bool
-    - not ansible_check_mode
-
-- name: Remove the temporary Wi-Fi QR
-  ansible.builtin.file:
-    path: "{{ travel_lab_tv_qr_tmp.path | default('') }}"
-    state: absent
-  delegate_to: localhost
-  changed_when: false
-  when:
-    - travel_lab_tv_wifi_ready | bool
-    - not ansible_check_mode
 
 - name: Warn about placeholder Wi-Fi credentials
   ansible.builtin.debug:
@@ -204,34 +81,3 @@
     - pipewire-pulse.socket
     - wireplumber.service
   environment: "{{ travel_lab_user_env }}"
-
-# --- page -------------------------------------------------------------------
-# Assets first, pages last: the supervisor treats a 200 on index.html as "ready",
-# so nothing the page references should still be missing.
-- name: Install the Travel TV static assets
-  ansible.builtin.copy:
-    src: "tv/{{ item }}"
-    dest: "{{ travel_lab_tv_www }}/{{ item }}"
-    mode: "0644"
-  loop:
-    - style.css
-    - app.js
-    - bluetooth.js
-    - remote.css
-    - remote.js
-
-- name: Render the Travel TV pages
-  ansible.builtin.template:
-    src: "tv/{{ item }}.j2"
-    dest: "{{ travel_lab_tv_www }}/{{ item }}"
-    mode: "0644"
-  loop:
-    - forecast.html
-    - wifi.html
-    - radio.html
-    - remote-qr.html
-    - remote.html
-    - settings.html
-    - bluetooth.html
-    - about.html
-    - index.html

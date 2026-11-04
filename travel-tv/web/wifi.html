@@ -16,20 +16,20 @@
   </header>
 
   <main class="qr-page">
-    {% if travel_lab_tv_wifi_ready | bool %}
+    {{if .WiFi.Ready}}
       <div class="qr-card">
         <img class="qr-large" src="wifi-qr.svg"
-             alt="Wi-Fi QR code for {{ travel_lab_wifi_ssid }}">
+             alt="Wi-Fi QR code for {{.WiFi.SSID}}">
       </div>
-      <div class="ssid">{{ travel_lab_wifi_ssid }}</div>
+      <div class="ssid">{{.WiFi.SSID}}</div>
       <div class="hint">Scan with your phone camera</div>
-      {% if travel_lab_tv_wifi_placeholder | bool %}
+      {{if .WiFi.Placeholder}}
         <div class="note">Placeholder credentials &mdash; run <code>just vault-edit</code> to set the real SSID and PSK.</div>
-      {% endif %}
-    {% else %}
+      {{end}}
+    {{else}}
       <div class="ssid">Wi-Fi setup pending</div>
       <div class="hint">Add the SSID and PSK to the Ansible vault, then re-run the deploy.</div>
-    {% endif %}
+    {{end}}
   </main>
 
   <footer class="hints">

@@ -16,10 +16,17 @@ import (
 var version = "dev"
 
 func main() {
-	config := tv.ConfigFromEnv()
+	config, err := tv.ConfigFromEnv()
+	if err != nil {
+		log.Fatalf("travel-tv: %v", err)
+	}
 
 	service := tv.NewService(tv.NewWayland(), tv.NewPulseAudio(), config.Settle)
-	handler := tv.NewServer(config, service, tv.NewBluetooth(), version).Handler()
+	app, err := tv.NewServer(config, service, tv.NewBluetooth(), version)
+	if err != nil {
+		log.Fatalf("travel-tv: %v", err)
+	}
+	handler := app.Handler()
 
 	server := &http.Server{
 		Addr:              config.Listen,
@@ -41,7 +48,7 @@ func main() {
 		}
 	}()
 
-	log.Printf("travel-tv %s: listening on %s (www=%s)", version, config.Listen, config.WWW)
+	log.Printf("travel-tv %s: listening on %s", version, config.Listen)
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatalf("travel-tv: %v", err)
 	}

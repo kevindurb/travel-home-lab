@@ -9,6 +9,13 @@ travel_lab_configs:
   homer:
     src: homer-config.yml.j2
     dest: "{{ travel_lab_config_root }}/homer/config.yml"
+  travel-tv:
+    src: travel-tv-config.yml.j2
+    dest: "{{ travel_lab_tv_config }}"
+    # The Wi-Fi PSK is rendered into this file; keep it private to the stack
+    # user. The rootless container runs as that user and can still read it.
+    mode: "0600"
+    secret: true
 
 # Value stamped into every unit's AutoUpdate= line.
 travel_lab_auto_update_value: >-

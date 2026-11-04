@@ -42,14 +42,6 @@
     state: directory
     mode: "0755"
 
-# The travel-tv container bind-mounts the rendered page root, so it must exist
-# (and be user-owned) before Podman starts the container.
-- name: Create the Travel TV web root
-  ansible.builtin.file:
-    path: "{{ travel_lab_tv_www }}"
-    state: directory
-    mode: "0755"
-
 # moonlight-web-stream keeps data.json (users, pairings, settings) in
 # <root>/server, which is bind-mounted from here.
 - name: Create the Moonlight data directory
@@ -87,10 +79,11 @@
   ansible.builtin.template:
     src: "{{ item.value.src }}"
     dest: "{{ item.value.dest }}"
-    mode: "0644"
+    mode: "{{ item.value.mode | default('0644') }}"
   loop: "{{ travel_lab_configs | dict2items }}"
   loop_control:
     label: "{{ item.value.dest }}"
+  no_log: "{{ item.value.secret | default(false) }}"
   register: travel_lab_config_render
 
 - name: Render the quadlet units

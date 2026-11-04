@@ -7,8 +7,9 @@ ContainerName=travel-tv
 Network={{ travel_lab_network }}.network
 # Loopback only: tailscaled proxies travel-tv.<tailnet> here.
 PublishPort=127.0.0.1:{{ travel_lab_tailscale_services.tv.local_port }}:{{ travel_lab_tv_listen_port }}
-# The Ansible-rendered launcher/remote pages and QR SVGs.
-Volume=%h/.config/travel-tv/www:/usr/share/travel-tv/www:ro,z
+# The Ansible-rendered page data: tiles, Wi-Fi credentials, weather location
+# and host facts. The Go image renders the markup and QR codes from this file.
+Volume=%h/.config/travel-tv/config.yml:/etc/travel-tv/config.yml:ro,z
 # The kiosk's Wayland and PipeWire-Pulse sockets. The app injects input with
 # the bundled wtype/wlrctl and controls volume through pipewire-pulse.
 Volume=/run/user/{{ travel_lab_uid }}:/run/user/{{ travel_lab_uid }}:rw
@@ -17,11 +18,9 @@ Volume=/run/user/{{ travel_lab_uid }}:/run/user/{{ travel_lab_uid }}:rw
 # same uid the host policy allows.
 Volume=/run/dbus:/run/dbus:ro
 Environment=DBUS_SYSTEM_BUS_ADDRESS=unix:path=/run/dbus/system_bus_socket
-Environment=TRAVEL_TV_LISTEN=:{{ travel_lab_tv_listen_port }}
-Environment=TRAVEL_TV_WWW=/usr/share/travel-tv/www
+Environment=TRAVEL_TV_CONFIG=/etc/travel-tv/config.yml
 Environment=XDG_RUNTIME_DIR=/run/user/{{ travel_lab_uid }}
 Environment=PULSE_SERVER=unix:/run/user/{{ travel_lab_uid }}/pulse/native
-Environment=TRAVEL_TV_REMOTE_SETTLE_MS={{ travel_lab_tv_remote_settle_ms }}
 Environment=HOME=/root
 Environment=LANG=C.UTF-8
 # wtype writes its temporary XKB keymap to /tmp.

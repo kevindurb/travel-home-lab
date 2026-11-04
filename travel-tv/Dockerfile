@@ -10,8 +10,8 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN mkdir -p /out/tmp /out/run/dbus && \
-    touch /out/tmp/.keep /out/run/dbus/.keep && \
+RUN mkdir -p /out/tmp /out/run/dbus /out/etc/travel-tv && \
+    touch /out/tmp/.keep /out/run/dbus/.keep /out/etc/travel-tv/.keep && \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags="-s -w -X main.version=$VERSION" \
     -o /out/travel-tv ./cmd/travel-tv
@@ -24,6 +24,8 @@ RUN apk add --no-cache wtype wlrctl
 FROM scratch
 COPY --from=build /out/travel-tv /travel-tv
 COPY --from=build /out/tmp /tmp
+# Mount point for the Ansible-rendered page data.
+COPY --from=build /out/etc /etc
 # Mount point for the system D-Bus socket (Bluetooth controller pairing).
 COPY --from=build /out/run /run
 COPY --from=helpers /usr/bin/wtype /usr/bin/wtype

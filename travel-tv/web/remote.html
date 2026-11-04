@@ -9,7 +9,7 @@
   <title>Travel TV Remote</title>
   <link rel="stylesheet" href="remote.css">
 </head>
-<body data-columns="{{ travel_lab_tv_grid_columns }}">
+<body data-columns="{{.GridColumns}}">
   <div class="shell">
     <header class="head">
       <div class="brand">TRAVEL LAB</div>
@@ -91,14 +91,14 @@
           <div class="hint">Tap to launch</div>
         </div>
         <div class="apps">
-          {% for tile in travel_lab_tv_tiles %}
-          {% if (tile.action | default('')) != 'remote' %}
+          {{range $i, $tile := .Tiles}}
+          {{if ne $tile.Action "remote"}}
           <button type="button" class="app"
-                  data-launch="{{ loop.index0 }}"
-                  data-label="{{ tile.label }}"
-                  style="--accent: {{ tile.accent }};">{{ tile.label }}</button>
-          {% endif %}
-          {% endfor %}
+                  data-launch="{{$i}}"
+                  data-label="{{$tile.Label}}"
+                  style="--accent: {{$tile.Accent}};">{{$tile.Label}}</button>
+          {{end}}
+          {{end}}
         </div>
       </section>
 

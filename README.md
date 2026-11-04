@@ -29,8 +29,9 @@ repository no longer needs to exist on the Pi** — the quadlets and config file
 are rendered onto it.
 
 The **travel-tv** container is the one image built from this repository: a Go
-app in [`travel-tv/`](travel-tv/) that serves the launcher and phone remote and
-injects Wayland input. GitHub Actions publishes it to
+app in [`travel-tv/`](travel-tv/) that embeds the launcher and phone-remote
+pages, renders them from an Ansible-generated YAML config, and injects Wayland
+input. GitHub Actions publishes it to
 `ghcr.io/kevindurb/travel-home-lab/travel-tv`; the Pi pulls it like any other
 stack image.
 
@@ -40,11 +41,8 @@ stack image.
 ansible-galaxy collection install -r ansible/requirements.yml
 ```
 
-The Wi-Fi QR is rendered on the workstation with `qrencode`:
-
-```bash
-brew install qrencode       # or apt/dnf install qrencode
-```
+The launcher pages, CSS and JS are embedded in the `travel-tv` Go image, and
+it renders both QR codes itself, so no QR tool is needed on the workstation.
 
 The encrypted Wi-Fi credentials live in
 `ansible/host_vars/travel-lab/vault.yml` and are unlocked with
@@ -89,7 +87,7 @@ Travel TV service, starts normally. Connect the NVMe and re-run `just deploy`
 ~/.config/moonlight/                    # moonlight-web-stream data.json (users, pairings)
 ~/.config/systemd/user/pi-health.*      # temperature / under-voltage collector timer
 ~/.local/bin/pi-health                  # collector pushed to Gatus
-~/.config/travel-tv/www/                # rendered page, QR codes and remote
+~/.config/travel-tv/config.yml          # rendered page data (tiles, Wi-Fi, weather, host facts)
 ~/.local/share/travel-tv/firefox/       # persistent kiosk profile
 /etc/systemd/system/tv-kiosk.service    # HDMI kiosk (system unit)
 ```

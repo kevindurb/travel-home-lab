@@ -1,0 +1,53 @@
+---
+# Travel TV page data. Ansible renders this from the stack variables, the
+# vault (Wi-Fi) and the Pi's facts; the travel-tv Go image turns it into the
+# launcher, phone remote and QR codes at startup. Keep keys in sync with
+# travel-tv/internal/tv/config.go.
+listen: {{ (':' ~ travel_lab_tv_listen_port) | to_json }}
+settle_ms: {{ travel_lab_tv_remote_settle_ms | int }}
+remote_url: {{ travel_lab_tv_remote_qr_url | to_json }}
+grid_columns: {{ travel_lab_tv_grid_columns | int }}
+
+weather:
+  units: {{ travel_lab_weather_units | to_json }}
+  latitude: {{ travel_lab_weather_latitude | default('', true) | to_json }}
+  longitude: {{ travel_lab_weather_longitude | default('', true) | to_json }}
+  city: {{ travel_lab_weather_city | default('', true) | to_json }}
+
+wifi:
+  ssid: {{ travel_lab_wifi_ssid | to_json }}
+  psk: {{ travel_lab_wifi_psk | to_json }}
+  security: {{ travel_lab_wifi_security | to_json }}
+  hidden: {{ travel_lab_wifi_hidden | bool | to_json }}
+
+about:
+  model: {{ ansible_facts['model'] | default('Raspberry Pi', true) | to_json }}
+  distribution: {{ ansible_facts['distribution'] | default('Linux', true) | to_json }}
+  distribution_version: {{ ansible_facts['distribution_version'] | default('', true) | to_json }}
+  kernel: {{ ansible_facts['kernel'] | default('unknown', true) | to_json }}
+  tailnet: {{ travel_lab_tailnet_domain | to_json }}
+  firefox: {{ travel_lab_tv_firefox_bin | to_json }}
+  services:
+{% for key, svc in travel_lab_tailscale_services | dictsort %}
+    - name: {{ svc.service | to_json }}
+      url: {{ ('https://' ~ svc.service ~ '.' ~ travel_lab_tailnet_domain) | to_json }}
+{% endfor %}
+tiles:
+{% for tile in travel_lab_tv_tiles %}
+  - id: {{ tile.id | to_json }}
+    label: {{ tile.label | to_json }}
+    icon: {{ tile.icon | default('', true) | to_json }}
+    accent: {{ tile.accent | to_json }}
+    url: {{ tile.url | to_json }}
+{% if tile.action is defined %}
+    action: {{ tile.action | to_json }}
+{% endif %}
+{% endfor %}
+radio_stations:
+{% for station in travel_lab_radio_stations %}
+  - id: {{ station.id | to_json }}
+    name: {{ station.name | to_json }}
+    subtitle: {{ station.subtitle | to_json }}
+    accent: {{ station.accent | to_json }}
+    url: {{ station.url | to_json }}
+{% endfor %}

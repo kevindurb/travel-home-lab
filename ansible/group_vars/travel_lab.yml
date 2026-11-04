@@ -50,9 +50,8 @@ travel_lab_network: travel-home-lab
 # svc:travel-tv. The Pi's HDMI output runs Cage + Firefox at boot. See
 # docs/hdmi-tv.md.
 travel_lab_tv_url: "https://{{ travel_lab_tailscale_services.tv.service }}.{{ travel_lab_tailnet_domain }}"
-travel_lab_tv_www: "{{ travel_lab_config_root }}/travel-tv/www"
+travel_lab_tv_config: "{{ travel_lab_config_root }}/travel-tv/config.yml"
 travel_lab_tv_profile: "{{ travel_lab_home }}/.local/share/travel-tv/firefox"
-travel_lab_tv_remote_url: "{{ travel_lab_tv_url }}/remote.html"
 # Short URL encoded in the launcher QR; the Go app serves remote.html for /r.
 travel_lab_tv_remote_qr_url: "{{ travel_lab_tv_url }}/r"
 # Port the Go app listens on inside the container. The host-facing loopback
@@ -68,8 +67,8 @@ travel_lab_tv_remote_settle_ms: 2000
 # image only has Debian's ESR package.
 travel_lab_tv_firefox_package: firefox
 travel_lab_tv_firefox_bin: firefox
-# qrencode runs on the controller so the PSK never reaches the Pi in plaintext.
-travel_lab_tv_qrencode_bin: qrencode
+# qrencode is no longer needed: the Go app renders both QR codes from the
+# rendered config at startup. The PSK lives only in that 0600 config file.
 
 # --- Moonlight (game streaming) --------------------------------------------
 # moonlight-web-stream (Rust) runs on the Pi and relays a Sunshine host to the
@@ -102,8 +101,6 @@ travel_lab_wifi_ssid: "REPLACE_ME"
 travel_lab_wifi_psk: "REPLACE_ME"
 travel_lab_wifi_security: WPA
 travel_lab_wifi_hidden: false
-travel_lab_tv_wifi_ready: >-
-  {{ travel_lab_wifi_ssid | length > 0 and travel_lab_wifi_psk | length > 0 }}
 travel_lab_tv_wifi_placeholder: >-
   {{ travel_lab_wifi_ssid == 'REPLACE_ME' or travel_lab_wifi_psk == 'REPLACE_ME' }}
 

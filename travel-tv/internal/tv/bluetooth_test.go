@@ -54,7 +54,11 @@ func (f *fakeBluetooth) Forget(_ context.Context, address string) error {
 func bluetoothHandler(t *testing.T, bluetooth Bluetooth) http.Handler {
 	t.Helper()
 	service := newTestService(&fakeInput{}, &fakeAudio{})
-	return NewServer(Config{WWW: t.TempDir()}, service, bluetooth, "test").Handler()
+	server, err := NewServer(testConfig(), service, bluetooth, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return server.Handler()
 }
 
 func TestBluetoothStatus(t *testing.T) {
@@ -164,7 +168,11 @@ func TestBluetoothActionFailure(t *testing.T) {
 
 func TestHealthIncludesVersion(t *testing.T) {
 	service := newTestService(&fakeInput{}, &fakeAudio{})
-	handler := NewServer(Config{WWW: t.TempDir()}, service, nil, "1.2.3").Handler()
+	server, err := NewServer(testConfig(), service, nil, "1.2.3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := server.Handler()
 
 	request := httptest.NewRequest(http.MethodGet, "/api/health", nil)
 	response := httptest.NewRecorder()
