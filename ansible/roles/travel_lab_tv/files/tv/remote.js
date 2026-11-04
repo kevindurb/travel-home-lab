@@ -4,9 +4,13 @@
   const toastEl = document.getElementById('toast');
   const volume = document.getElementById('volume');
   const volumeOut = document.getElementById('volume-out');
-  const trackpad = document.getElementById('trackpad');
   const typeForm = document.getElementById('type-form');
   const typeInput = document.getElementById('type-input');
+  const clearType = document.getElementById('clear-type');
+  const trackpad = document.getElementById('trackpad-surface');
+  const cursor = document.getElementById('trackpad-cursor');
+  const tabs = Array.from(document.querySelectorAll('[data-tab]'));
+  const panels = Array.from(document.querySelectorAll('.panel'));
 
   let toastTimer = null;
   let volumeTimer = null;
@@ -49,6 +53,10 @@
     statusEl.title = detail || '';
   }
 
+  function updateVolumeLabel() {
+    if (volume && volumeOut) volumeOut.textContent = `${volume.value}%`;
+  }
+
   async function refresh() {
     try {
       const response = await fetch('/api/health', { cache: 'no-store' });
@@ -64,9 +72,21 @@
     }
   }
 
-  function updateVolumeLabel() {
-    if (volume && volumeOut) volumeOut.textContent = `${volume.value}%`;
-  }
+  // --- tabs -----------------------------------------------------------------
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const name = tab.dataset.tab;
+      tabs.forEach((item) => {
+        const active = item === tab;
+        item.classList.toggle('is-active', active);
+        item.setAttribute('aria-selected', String(active));
+      });
+      panels.forEach((panel) => {
+        panel.classList.toggle('is-active', panel.id === name);
+      });
+      if (name !== 'type' && typeInput) typeInput.blur();
+    });
+  });
 
   // --- keypad ---------------------------------------------------------------
   const holdKeys = new Set(['Up', 'Down', 'Left', 'Right']);
@@ -119,19 +139,7 @@
     });
   });
 
-  // --- apps -----------------------------------------------------------------
-  document.querySelectorAll('[data-launch]').forEach((button) => {
-    button.addEventListener('click', async () => {
-      const buttons = document.querySelectorAll('[data-launch]');
-      buttons.forEach((item) => { item.disabled = true; });
-      buzz(15);
-      toast(`Opening ${button.dataset.label || 'app'}…`);
-      await send('launch', { index: Number(button.dataset.launch), columns });
-      buttons.forEach((item) => { item.disabled = false; });
-    });
-  });
-
-  // --- pointer / trackpad ---------------------------------------------------
+  // --- pointer buttons ------------------------------------------------------
   document.querySelectorAll('[data-click]').forEach((button) => {
     button.addEventListener('click', () => {
       buzz();
@@ -146,6 +154,59 @@
     });
   });
 
+  // --- apps -----------------------------------------------------------------
+  document.querySelectorAll('[data-launch]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const buttons = document.querySelectorAll('[data-launch]');
+      buttons.forEach((item) => { item.disabled = true; });
+      buzz(15);
+      toast(`Opening ${button.dataset.label || 'app'}…`);
+      await send('launch', { index: Number(button.dataset.launch), columns });
+      buttons.forEach((item) => { item.disabled = false; });
+    });
+  });
+
+  // --- media / volume -------------------------------------------------------
+  if (volume) {
+    updateVolumeLabel();
+    volume.addEventListener('input', () => {
+      updateVolumeLabel();
+      clearTimeout(volumeTimer);
+      volumeTimer = setTimeout(() => {
+        send('volume', { value: Number(volume.value) / 100 });
+      }, 120);
+    });
+  }
+
+  document.querySelectorAll('[data-mute-toggle]').forEach((button) => {
+    button.addEventListener('click', () => {
+      buzz();
+      send('mute', { toggle: true });
+    });
+  });
+
+  // --- type -----------------------------------------------------------------
+  if (typeForm && typeInput) {
+    typeForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const text = typeInput.value.trim();
+      if (!text) {
+        typeInput.focus();
+        return;
+      }
+      buzz();
+      if (await send('text', { text })) toast('Text sent');
+    });
+  }
+
+  if (clearType && typeInput) {
+    clearType.addEventListener('click', () => {
+      typeInput.value = '';
+      typeInput.focus();
+    });
+  }
+
+  // --- trackpad -------------------------------------------------------------
   if (trackpad) {
     let active = false;
     let lastX = 0;
@@ -155,6 +216,16 @@
     let moved = 0;
     let startedAt = 0;
     let flushTimer = null;
+
+    const placeCursor = (event) => {
+      if (!cursor) return;
+      const rect = trackpad.getBoundingClientRect();
+      const x = Math.max(8, Math.min(rect.width - 8, event.clientX - rect.left));
+      const y = Math.max(8, Math.min(rect.height - 8, event.clientY - rect.top));
+      cursor.style.left = `${x}px`;
+      cursor.style.top = `${y}px`;
+      cursor.classList.add('is-visible');
+    };
 
     const flush = () => {
       flushTimer = null;
@@ -190,6 +261,7 @@
       lastX = event.clientX;
       lastY = event.clientY;
       trackpad.classList.add('is-active');
+      placeCursor(event);
       try { trackpad.setPointerCapture(event.pointerId); } catch (_) { /* noop */ }
       event.preventDefault();
     });
@@ -203,6 +275,7 @@
       accX += dx;
       accY += dy;
       moved += Math.abs(dx) + Math.abs(dy);
+      placeCursor(event);
       if (!flushTimer) flushTimer = setTimeout(flush, 50);
       event.preventDefault();
     });
@@ -211,37 +284,6 @@
     trackpad.addEventListener('pointercancel', end);
     trackpad.addEventListener('pointerleave', (event) => { if (active) end(event); });
     trackpad.addEventListener('contextmenu', (event) => event.preventDefault());
-  }
-
-  // --- volume / media -------------------------------------------------------
-  if (volume) {
-    updateVolumeLabel();
-    volume.addEventListener('input', () => {
-      updateVolumeLabel();
-      clearTimeout(volumeTimer);
-      volumeTimer = setTimeout(() => {
-        send('volume', { value: Number(volume.value) / 100 });
-      }, 120);
-    });
-  }
-
-  document.querySelectorAll('[data-mute-toggle]').forEach((button) => {
-    button.addEventListener('click', () => {
-      buzz();
-      send('mute', { toggle: true });
-    });
-  });
-
-  // --- keyboard -------------------------------------------------------------
-  if (typeForm && typeInput) {
-    typeForm.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const text = typeInput.value.trim();
-      if (!text) return;
-      buzz();
-      const ok = await send('text', { text });
-      if (ok) typeInput.select();
-    });
   }
 
   refresh();

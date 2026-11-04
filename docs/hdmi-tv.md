@@ -318,16 +318,21 @@ scan the **Remote** tile on the TV (the QR encodes the short
 `https://travel-tv.<tailnet>/r`). It is a normal static page, so it can be
 bookmarked or added to the home screen.
 
-The page has:
+The page has four tabs:
 
-- a **trackpad**: drag to move the TV pointer, tap to left-click, plus
-  right-click and vertical scroll buttons;
-- a **D-pad** with OK, Back (`Alt+Left`) and Home (`Alt+Home`);
-- an **app grid** built from `travel_lab_tv_tiles`; tapping an app sends
-  `Alt+Home`, waits, walks to the tile with arrow keys, and presses Enter;
-- **Play/Pause** (Space on the radio page) and a TV volume slider (mute);
-- a **text field** that types into whatever the TV has focused, plus
-  Enter/Backspace/Space buttons.
+- **Controls** — the D-pad, Back (`Alt+Left`), Home (`Alt+Home`), click/scroll
+  quick actions, Play/Pause and the TV volume slider;
+- **Shortcuts** — the app grid built from `travel_lab_tv_tiles`; tapping an app
+  sends `Alt+Home`, waits, walks to the tile with arrow keys, and presses Enter;
+- **Type** — a text composer plus Enter, Backspace, Space, Tab, Escape and
+  Clear. The phone keyboard only appears on this tab;
+- **Trackpad** — a larger, last-resort pointer pad with click and scroll
+  actions.
+
+The page is a fixed `100dvh` shell with no page scroll; the tabs sit at the
+top. It is sized for an iPhone 13 mini (375×812) and respects the safe-area
+insets. The static layout mockup lives at
+`docs/mockups/tv-remote-layout.html`; it is not deployed.
 
 It works in Jellyfin, YouTube, Netflix, Spotify and PBS Kids as well as the
 launcher, because the API injects input at the Wayland compositor. It is not

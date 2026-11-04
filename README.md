@@ -95,9 +95,10 @@ the 10ft launcher (Jellyfin, YouTube, Netflix, Disney+, Spotify, Kiwix, a
 Wi-Fi QR, weather/forecast, Radio, PBS Kids and a phone-remote QR). No desktop
 environment is used.
 
-A phone remote at `https://travel-tv.<tailnet>/remote.html` controls the kiosk:
-D-pad, trackpad, app launch, volume, and text entry. Scan the Remote tile's QR
-(or open the short `https://travel-tv.<tailnet>/r`) to get there.
+A phone remote at `https://travel-tv.<tailnet>/remote.html` controls the kiosk
+with tabs for Controls, Shortcuts, Type and Trackpad: D-pad, trackpad, app
+launch, volume and text entry. Scan the Remote tile's QR (or open the short
+`https://travel-tv.<tailnet>/r`) to get there.
 
 Prerequisites: create `svc:travel-tv` in the Tailscale admin console and set
 the Wi-Fi vault values with `just vault-edit`. Full details, one-time
