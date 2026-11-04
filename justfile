@@ -97,7 +97,7 @@ tv-restart:
 tv-page:
   ssh -N -L 18085:127.0.0.1:18085 travel-lab.beaver-cloud.ts.net
 
-# Remove the kiosk unit/PAM/supervisor. Leaves packages, the profile and the
-# travel-tv container alone (use `just teardown` for the stack).
+# Remove the kiosk unit, PAM stack and supervisor. Leaves packages, profile
+# and the travel-tv container (removed by `just teardown`).
 tv-teardown:
   cd {{ ansible_dir }} && ansible-playbook tv-teardown.yml --ask-become-pass
