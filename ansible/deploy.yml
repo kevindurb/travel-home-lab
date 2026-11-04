@@ -9,3 +9,4 @@
   become: false
   roles:
     - travel_lab
+    - travel_lab_tv

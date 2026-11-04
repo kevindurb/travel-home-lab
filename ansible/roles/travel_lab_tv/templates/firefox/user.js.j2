@@ -1,0 +1,39 @@
+// Rendered by Ansible for the Travel TV kiosk. Changes are overwritten.
+user_pref("browser.shell.checkDefaultBrowser", false);
+user_pref("browser.startup.page", 0);
+user_pref("browser.startup.homepage", "{{ travel_lab_tv_url }}");
+user_pref("browser.startup.homepage_override.mstone", "ignore");
+user_pref("browser.startup.firstrunSkipsHomepage", true);
+user_pref("browser.newtabpage.enabled", false);
+user_pref("browser.sessionstore.resume_from_crash", false);
+user_pref("browser.tabs.warnOnClose", false);
+user_pref("browser.warnOnQuit", false);
+user_pref("browser.aboutwelcome.enabled", false);
+user_pref("browser.messaging-system.whatsNewPanel.enabled", false);
+user_pref("browser.discovery.enabled", false);
+user_pref("extensions.pocket.enabled", false);
+user_pref("datareporting.policy.dataSubmissionEnabled", false);
+user_pref("datareporting.healthreport.uploadEnabled", false);
+user_pref("toolkit.telemetry.enabled", false);
+user_pref("app.shield.optoutstudies.enabled", false);
+user_pref("app.normandy.enabled", false);
+user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
+user_pref("full-screen-api.warning.timeout", 0);
+user_pref("full-screen-api.transition-duration.enter", "0 0");
+user_pref("full-screen-api.transition-duration.leave", "0 0");
+user_pref("browser.fullscreen.autohide", true);
+
+// DRM for Netflix/Disney+; Raspberry Pi OS supplies the Widevine CDM.
+user_pref("media.eme.enabled", true);
+user_pref("media.gmp-widevinecdm.enabled", true);
+user_pref("media.autoplay.default", 0);
+
+// Per-site zoom for Netflix/Disney+ (Ctrl++ once, persisted in the profile).
+user_pref("browser.zoom.siteSpecific", true);
+
+// YouTube's unofficial 10ft Leanback UI. Google restricts it to TV user
+// agents; if this stops working, the tile still opens normal YouTube.
+user_pref("general.useragent.override.www.youtube.com",
+          "Mozilla/5.0 (PS4; Leanback Shell) Cobalt/26.lts.0-qa; compatible;");
+user_pref("general.useragent.override.youtube.com",
+          "Mozilla/5.0 (PS4; Leanback Shell) Cobalt/26.lts.0-qa; compatible;");

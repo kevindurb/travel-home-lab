@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Travel Lab &mdash; Wi-Fi</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="wifi">
+  <header class="top">
+    <a class="back" href="index.html" data-back>&larr; Back</a>
+    <div class="when">
+      <div class="clock" id="clock">--:--</div>
+      <div class="date" id="date"></div>
+    </div>
+  </header>
+
+  <main class="qr-page">
+    {% if travel_lab_tv_wifi_ready | bool %}
+      <div class="qr-card">
+        <img class="qr-large" src="wifi-qr.svg"
+             alt="Wi-Fi QR code for {{ travel_lab_wifi_ssid }}">
+      </div>
+      <div class="ssid">{{ travel_lab_wifi_ssid }}</div>
+      <div class="hint">Scan with your phone camera</div>
+      {% if travel_lab_tv_wifi_placeholder | bool %}
+        <div class="note">Placeholder credentials &mdash; run <code>just vault-edit</code> to set the real SSID and PSK.</div>
+      {% endif %}
+    {% else %}
+      <div class="ssid">Wi-Fi setup pending</div>
+      <div class="hint">Add the SSID and PSK to the Ansible vault, then re-run the deploy.</div>
+    {% endif %}
+  </main>
+
+  <footer class="hints">
+    <span><b>Backspace</b> or <b>Esc</b> to return</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

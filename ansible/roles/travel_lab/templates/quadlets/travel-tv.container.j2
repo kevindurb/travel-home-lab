@@ -1,0 +1,18 @@
+[Unit]
+Description=Travel TV launcher (static 10ft page)
+
+[Container]
+Image={{ travel_lab_images.tv }}
+ContainerName=travel-tv
+Network={{ travel_lab_network }}.network
+# Loopback only: tailscaled proxies travel-tv.<tailnet> here.
+PublishPort=127.0.0.1:{{ travel_lab_tailscale_services.tv.local_port }}:80
+Volume=%h/.config/travel-tv/www:/usr/share/nginx/html:ro,z
+Volume=%h/.config/travel-tv/nginx.conf:/etc/nginx/conf.d/default.conf:ro,z
+AutoUpdate={{ travel_lab_auto_update_value }}
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

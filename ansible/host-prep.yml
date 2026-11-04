@@ -8,3 +8,4 @@
   become: true
   roles:
     - travel_lab_host
+    - travel_lab_tv_host

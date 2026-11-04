@@ -1,8 +1,10 @@
 # travel-home-lab
 
 Rootless Podman Quadlets for the travel lab stack (kiwix, jellyfin, gatus,
-glances, dozzle, homer, whoami) on `travel-lab` (Raspberry Pi 4, aarch64),
-deployed with **Ansible**.
+glances, dozzle, homer, travel-tv, whoami) on `travel-lab` (Raspberry Pi 4,
+aarch64), deployed with **Ansible**. The Pi's HDMI output can also run a 10ft
+**Travel TV** kiosk (Cage + Firefox); see
+[docs/hdmi-tv.md](docs/hdmi-tv.md).
 
 Ingress is **Tailscale Services**, not a reverse proxy: each container
 publishes on `127.0.0.1` only, and tailscaled terminates TLS on `tailscale0:443`
@@ -27,7 +29,17 @@ are rendered onto it.
 ansible-galaxy collection install -r ansible/requirements.yml
 ```
 
-`just` is optional; every recipe maps to a plain `ansible-playbook` command.
+The Wi-Fi QR is rendered on the workstation with `qrencode`:
+
+```bash
+brew install qrencode       # or apt/dnf install qrencode
+```
+
+The encrypted Wi-Fi credentials live in
+`ansible/host_vars/travel-lab/vault.yml` and are unlocked with
+`~/.vault_pass` (already configured in `ansible/ansible.cfg`). Use
+`just vault-edit` to change them. `just` is optional; every recipe maps to a
+plain `ansible-playbook` command.
 
 ## Deploy
 
@@ -51,18 +63,39 @@ ansible-playbook -i inventory/prod.yml deploy.yml
 `host-prep` needs the Pi's sudo password (`--ask-become-pass`); `deploy` does
 not.
 
+If `/mnt/storage` is not mounted, the deploy still converges: Jellyfin and
+Kiwix are left inactive because their units carry
+`ConditionPathIsMountPoint=/mnt/storage`. The rest of the stack, including the
+Travel TV service, starts normally. Connect the NVMe and re-run `just deploy`
+(or start the two units manually) when you want them back.
+
 ## What lands on the Pi
 
 ```
-~/.config/containers/systemd/           # 11 quadlet units: 1 network, 3 volumes, 7 containers
+~/.config/containers/systemd/           # 11 quadlet units: 1 network, 2 volumes, 8 containers
 ~/.config/gatus/config.yml
 ~/.config/homer/config.yml
+~/.config/travel-tv/                    # launcher page + nginx config
+~/.local/share/travel-tv/firefox/       # persistent kiosk profile
+/etc/systemd/system/tv-kiosk.service    # HDMI kiosk (system unit)
 ```
 
 All of it is Ansible-owned: edit the templates or
 [`ansible/group_vars/travel_lab.yml`](ansible/group_vars/travel_lab.yml) in this
 repo and re-run `deploy`. Hand-edits on the Pi are overwritten on the next run.
 The units use the systemd `%h` specifier, so nothing is tied to the username.
+
+## Travel TV
+
+`just site` installs a Cage + Firefox kiosk on the Pi's HDMI output. It waits
+for a connected display and the `https://travel-tv.<tailnet>` page, then shows
+the 10ft launcher (Jellyfin, YouTube, Netflix, Disney+, Kiwix, a Wi-Fi QR and
+a weather/forecast tile). No desktop environment is used.
+
+Prerequisites: create `svc:travel-tv` in the Tailscale admin console and set
+the Wi-Fi vault values with `just vault-edit`. Full details, one-time
+Jellyfin/Netflix setup, audio notes and troubleshooting are in
+[docs/hdmi-tv.md](docs/hdmi-tv.md).
 
 ## Operate
 
@@ -73,6 +106,9 @@ just status
 just logs kiwix
 just serves
 just ssh 'podman ps'
+just tv-status
+just tv-logs
+just vault-view
 ```
 
 Or on the Pi directly:
@@ -81,6 +117,7 @@ Or on the Pi directly:
 systemctl --user status jellyfin
 journalctl --user -u kiwix -f
 tailscale serve status
+systemctl status tv-kiosk
 ```
 
 Quadlets autostart at boot via `[Install] WantedBy=default.target` plus
@@ -129,11 +166,14 @@ caveat about `:latest` on the stateful services.
 ## Tear down
 
 ```bash
-just teardown
+just teardown       # stack: stop and remove the quadlet units
+just tv-teardown    # kiosk: stop/remove the system unit; leaves packages + profile
 ```
 
 Stops the stack and removes the quadlet units this repo manages. Images, the
-five volumes, and the rendered config files are left alone.
+five volumes, and the rendered config files are left alone. `tv-teardown`
+also leaves the Firefox profile and page files; see
+[docs/hdmi-tv.md](docs/hdmi-tv.md#10-teardown).
 
 ## Rollback
 

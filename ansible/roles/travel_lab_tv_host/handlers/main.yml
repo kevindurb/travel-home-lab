@@ -1,0 +1,6 @@
+---
+- name: Reload systemd and restart the Travel TV kiosk
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+    name: tv-kiosk.service
+    state: restarted

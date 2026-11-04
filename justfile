@@ -31,6 +31,14 @@ site:
 check:
   just playbook deploy.yml --check --diff
 
+# Edit the encrypted Wi-Fi SSID/PSK (travel_lab_wifi_ssid / travel_lab_wifi_psk).
+vault-edit:
+  cd {{ ansible_dir }} && ansible-vault edit host_vars/travel-lab/vault.yml
+
+# Show the decrypted Wi-Fi placeholders/credentials.
+vault-view:
+  cd {{ ansible_dir }} && ansible-vault view host_vars/travel-lab/vault.yml
+
 # Stop and remove the quadlet units this repo manages. Volumes are left alone.
 teardown:
   just playbook teardown.yml
@@ -41,7 +49,7 @@ ssh *args:
 
 # Container unit status on the Pi.
 status:
-  ssh travel-lab.beaver-cloud.ts.net 'systemctl --user --no-pager status kiwix jellyfin gatus glances dozzle homer whoami'
+  ssh travel-lab.beaver-cloud.ts.net 'systemctl --user --no-pager status kiwix jellyfin gatus glances dozzle homer travel-tv whoami'
 
 # Tailscale Services the Pi is serving (name -> loopback proxy target).
 serves:
@@ -54,3 +62,23 @@ serves-json:
 # Follow a unit's journal, e.g. `just logs jellyfin`
 logs unit:
   ssh -t travel-lab.beaver-cloud.ts.net 'journalctl --user -u {{ unit }} -f'
+
+# Travel TV kiosk status and logs (it is a system unit, not a user quadlet).
+tv-status:
+  ssh travel-lab.beaver-cloud.ts.net 'systemctl --no-pager status tv-kiosk'
+
+tv-logs:
+  ssh -t travel-lab.beaver-cloud.ts.net 'journalctl -u tv-kiosk -f'
+
+# Restart Firefox/Cage after a page or profile change. Prompts for sudo.
+tv-restart:
+  ssh -t travel-lab.beaver-cloud.ts.net 'sudo systemctl restart tv-kiosk'
+
+# Port-forward the launcher for a laptop browser preview.
+tv-page:
+  ssh -N -L 18085:127.0.0.1:18085 travel-lab.beaver-cloud.ts.net
+
+# Remove the kiosk unit/PAM/supervisor. Leaves packages, the profile and the
+# travel-tv container alone (use `just teardown` for the stack).
+tv-teardown:
+  cd {{ ansible_dir }} && ansible-playbook tv-teardown.yml --ask-become-pass

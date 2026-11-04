@@ -1,0 +1,38 @@
+---
+# Stop and remove the HDMI kiosk. This deliberately leaves:
+#   * the kiosk packages (cage, Firefox, PipeWire, Widevine)
+#   * ~/.local/share/travel-tv/firefox (Jellyfin/Netflix logins)
+#   * the rendered page under ~/.config/travel-tv
+#   * the travel-tv container (removed by `just teardown`)
+#
+#   ansible-playbook tv-teardown.yml --ask-become-pass
+#
+- name: Remove the Travel TV kiosk
+  hosts: travel_lab
+  become: true
+  tasks:
+    - name: Stop and disable the kiosk
+      ansible.builtin.systemd_service:
+        name: tv-kiosk.service
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: Remove the kiosk unit, PAM stack and supervisor
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/systemd/system/tv-kiosk.service
+        - /etc/pam.d/cage
+        - /usr/local/bin/travel-tv-kiosk
+
+    - name: Reload systemd
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+
+    - name: Report what was left behind
+      ansible.builtin.debug:
+        msg:
+          - "Kiosk removed; packages, Firefox profile and page files remain."
+          - "The travel-tv container is removed by `just teardown`."

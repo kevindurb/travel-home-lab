@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Travel Lab &mdash; Forecast</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="forecast"
+      data-weather-units="{{ travel_lab_weather_units }}"
+      data-weather-lat="{{ travel_lab_weather_latitude | default('') }}"
+      data-weather-lon="{{ travel_lab_weather_longitude | default('') }}"
+      data-weather-city="{{ travel_lab_weather_city | default('') }}">
+  {% include "tv/weather-sprite.j2" %}
+  <header class="top">
+    <a class="back" href="index.html" data-back>&larr; Back</a>
+    <div class="when">
+      <div class="clock" id="clock">--:--</div>
+      <div class="date" id="date"></div>
+    </div>
+  </header>
+
+  <main class="forecast">
+    <section class="fc-current">
+      <svg class="fc-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <use id="fc-icon-use" href="#wx-cloud"></use>
+      </svg>
+      <div class="fc-temp" id="fc-temp">--°</div>
+      <div class="fc-copy">
+        <div class="fc-condition" id="fc-condition">Weather</div>
+        <div class="fc-place" id="fc-place"></div>
+        <div class="fc-range" id="fc-range"></div>
+      </div>
+    </section>
+
+    <div class="fc-section-title">Next 12 hours</div>
+    <section class="hourly-card">
+      <svg class="hourly-graph" id="hourly-graph" viewBox="0 0 1200 220"
+           aria-label="12-hour temperature trend"></svg>
+    </section>
+
+    <section class="daily-row" id="daily-row" aria-label="5-day forecast"></section>
+  </main>
+
+  <footer class="hints">
+    <span><b>Alt+&larr;</b> back</span>
+    <span><b>Alt+Home</b> home</span>
+    <span><b>Backspace</b> / <b>Esc</b> back</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

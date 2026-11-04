@@ -1,0 +1,15 @@
+---
+# Packages for the HDMI kiosk. Widevine is installed separately (it is not
+# available on every Raspberry Pi OS image) so the kiosk still works without
+# Netflix/Disney+ DRM.
+travel_lab_tv_host_packages:
+  - cage
+  - "{{ travel_lab_tv_firefox_package }}"
+  - pipewire
+  - pipewire-pulse
+  - wireplumber
+  - curl
+  - kbd
+  - ca-certificates
+  - fonts-dejavu-core
+  - libgl1-mesa-dri

@@ -1,0 +1,45 @@
+{% macro icon(name) -%}
+{% if name == 'jellyfin' %}
+<svg viewBox="0 0 24 24" aria-hidden="true">
+  <path fill="currentColor" d="M12 .002C8.826.002-1.398 18.537.16 21.666c1.56 3.129 22.14 3.094 23.682 0C25.384 18.573 15.177 0 12 0zm7.76 18.949c-1.008 2.028-14.493 2.05-15.514 0C3.224 16.9 9.92 4.755 12.003 4.755c2.081 0 8.77 12.166 7.759 14.196zM12 9.198c-1.054 0-4.446 6.15-3.93 7.189.518 1.04 7.348 1.027 7.86 0 .511-1.027-2.874-7.19-3.93-7.19z"/>
+</svg>
+{% elif name == 'youtube' %}
+<svg viewBox="0 0 24 24" aria-hidden="true">
+  <rect x="2.2" y="5.2" width="19.6" height="13.6" rx="4.2" fill="currentColor"/>
+  <path d="M9.8 8.9v6.2l5.6-3.1z" fill="#fff"/>
+</svg>
+{% elif name == 'netflix' %}
+<svg viewBox="0 0 24 24" aria-hidden="true">
+  <rect x="3" y="2.5" width="18" height="19" rx="4" fill="currentColor"/>
+  <text x="12" y="17.1" text-anchor="middle" font-family="DejaVu Sans, sans-serif"
+        font-size="14" font-weight="900" fill="#fff">N</text>
+</svg>
+{% elif name == 'disney' %}
+<svg viewBox="0 0 24 24" aria-hidden="true">
+  <rect x="2.5" y="4" width="19" height="16" rx="4" fill="currentColor"/>
+  <text x="12" y="15.9" text-anchor="middle" font-family="DejaVu Sans, sans-serif"
+        font-size="10.5" font-weight="800" fill="#fff">D+</text>
+</svg>
+{% elif name == 'kiwix' %}
+<svg viewBox="0 0 24 24" aria-hidden="true">
+  <path d="M3.5 4.6h6.2a2.8 2.8 0 0 1 2.8 2.8v12.2a2.2 2.2 0 0 0-2.2-2.2H3.5z"
+        fill="currentColor"/>
+  <path d="M20.5 4.6h-6.2a2.8 2.8 0 0 0-2.8 2.8v12.2a2.2 2.2 0 0 1 2.2-2.2h6.8z"
+        fill="currentColor" opacity=".65"/>
+</svg>
+{% elif name == 'wifi' %}
+<svg viewBox="0 0 24 24" aria-hidden="true">
+  <path d="M3.2 9.1a13.4 13.4 0 0 1 17.6 0" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round"/>
+  <path d="M6.2 12.7a8.6 8.6 0 0 1 11.6 0" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round"/>
+  <path d="M9.2 16.3a4 4 0 0 1 5.6 0" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round"/>
+  <circle cx="12" cy="19.6" r="1.4" fill="currentColor"/>
+</svg>
+{% else %}
+<svg viewBox="0 0 24 24" aria-hidden="true">
+  <circle cx="12" cy="12" r="8" fill="currentColor" opacity=".5"/>
+</svg>
+{% endif %}
+{%- endmacro %}

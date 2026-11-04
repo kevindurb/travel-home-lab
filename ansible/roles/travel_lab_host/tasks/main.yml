@@ -22,28 +22,30 @@
       Podman {{ travel_lab_host_podman_version.stdout }} is too old; this stack
       needs quadlets (Podman >= 5).
 
-- name: Assert the storage volume is mounted
-  ansible.builtin.assert:
-    that:
+- name: Warn when the storage volume is not mounted
+  ansible.builtin.debug:
+    msg:
+      - "{{ travel_lab_storage }} is not mounted."
       - >-
-        travel_lab_storage in
-        (ansible_facts.mounts | map(attribute='mount') | list)
-    fail_msg: >-
-      {{ travel_lab_storage }} is not a mountpoint. Jellyfin and Kiwix read
-      from it; refusing to proceed so they do not start on a bare directory.
+        Jellyfin and Kiwix will be left stopped; the rest of the stack still
+        deploys. Connect the storage and re-run `just deploy` to start them.
+  when: >-
+    travel_lab_storage not in
+    (ansible_facts.mounts | map(attribute='mount') | list)
 
 - name: Read /etc/fstab
   ansible.builtin.slurp:
     src: /etc/fstab
   register: travel_lab_host_fstab
 
-- name: Assert the storage volume is in /etc/fstab
-  ansible.builtin.assert:
-    that:
-      - travel_lab_storage in (travel_lab_host_fstab.content | b64decode)
-    fail_msg: >-
-      {{ travel_lab_storage }} has no /etc/fstab entry; it would not be mounted
-      after a reboot.
+- name: Warn when the storage volume is missing from /etc/fstab
+  ansible.builtin.debug:
+    msg:
+      - "{{ travel_lab_storage }} has no /etc/fstab entry."
+      - >-
+        It will not be mounted automatically after a reboot; add the entry
+        before travelling.
+  when: travel_lab_storage not in (travel_lab_host_fstab.content | b64decode)
 
 # Tailscale Serve writes need root unless the stack user is the tailscaled
 # operator. Set it once so `deploy` can apply the Serve config with no sudo.

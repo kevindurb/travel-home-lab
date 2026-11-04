@@ -1,0 +1,17 @@
+server {
+    listen 80 default_server;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+    charset utf-8;
+
+    # The kiosk profile is long-lived; always serve the freshly rendered page
+    # and QR instead of a cached copy.
+    add_header Cache-Control "no-store" always;
+    add_header X-Content-Type-Options "nosniff" always;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}

@@ -1,0 +1,101 @@
+---
+# Host-side kiosk setup. Runs escalated from host-prep.yml / site.yml.
+#
+# The kiosk is a system service because Cage needs a real logind session (and
+# DRM master) on tty1. It runs as the stack user and starts at multi-user.target.
+
+- name: Install the kiosk packages
+  ansible.builtin.apt:
+    name: "{{ travel_lab_tv_host_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install Widevine for Netflix and Disney+
+  ansible.builtin.apt:
+    name: libwidevinecdm0
+    state: present
+  register: travel_lab_tv_host_widevine
+  ignore_errors: true
+
+- name: Warn when Widevine is unavailable
+  ansible.builtin.debug:
+    msg: >-
+      libwidevinecdm0 could not be installed. The launcher and Jellyfin/YouTube
+      will work, but Netflix and Disney+ may refuse to play DRM video.
+  when: travel_lab_tv_host_widevine is failed
+
+# Cage needs the KMS display driver. This is the Bookworm overlay; do not edit
+# boot config automatically.
+- name: Read the Pi boot config
+  ansible.builtin.slurp:
+    src: /boot/firmware/config.txt
+  register: travel_lab_tv_host_boot_config
+  failed_when: false
+
+- name: Require the KMS display driver
+  ansible.builtin.assert:
+    that:
+      - travel_lab_tv_host_boot_config.content is defined
+      - >-
+        (travel_lab_tv_host_boot_config.content | b64decode)
+        is search('(?m)^dtoverlay=vc4-kms-v3d')
+    fail_msg: >-
+      /boot/firmware/config.txt does not enable dtoverlay=vc4-kms-v3d. Cage
+      needs the KMS display driver; enable it with raspi-config and reboot.
+
+# The logind session normally grants DRM/input access; these groups are a
+# belt-and-braces for direct /dev/dri and /dev/input access.
+- name: Check for the render group
+  ansible.builtin.command: getent group render
+  register: travel_lab_tv_host_render_group
+  changed_when: false
+  failed_when: false
+
+- name: Build the kiosk GPU group list
+  ansible.builtin.set_fact:
+    travel_lab_tv_host_gpu_groups: >-
+      video{{ ',render' if travel_lab_tv_host_render_group.rc == 0 else '' }}
+
+- name: Add the kiosk user to the GPU groups
+  ansible.builtin.user:
+    name: "{{ travel_lab_user }}"
+    groups: "{{ travel_lab_tv_host_gpu_groups }}"
+    append: true
+  notify: Reload systemd and restart the Travel TV kiosk
+
+- name: Install the Cage PAM stack
+  ansible.builtin.copy:
+    src: pam.d-cage
+    dest: /etc/pam.d/cage
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd and restart the Travel TV kiosk
+
+- name: Install the kiosk supervisor
+  ansible.builtin.template:
+    src: travel-tv-kiosk.j2
+    dest: /usr/local/bin/travel-tv-kiosk
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Reload systemd and restart the Travel TV kiosk
+
+- name: Install the kiosk systemd unit
+  ansible.builtin.template:
+    src: tv-kiosk.service.j2
+    dest: /etc/systemd/system/tv-kiosk.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd and restart the Travel TV kiosk
+
+- name: Apply unit changes before enabling the service
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start the kiosk at boot
+  ansible.builtin.systemd_service:
+    name: tv-kiosk.service
+    enabled: true
+    state: started

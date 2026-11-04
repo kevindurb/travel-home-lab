@@ -1,0 +1,76 @@
+{% import "tv/icons.j2" as icons -%}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Travel Lab</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="home"
+      data-weather-units="{{ travel_lab_weather_units }}"
+      data-weather-lat="{{ travel_lab_weather_latitude | default('') }}"
+      data-weather-lon="{{ travel_lab_weather_longitude | default('') }}"
+      data-weather-city="{{ travel_lab_weather_city | default('') }}">
+  {% include "tv/weather-sprite.j2" %}
+  <header class="top">
+    <div class="brand">TRAVEL LAB</div>
+    <div class="when">
+      <div class="clock" id="clock">--:--</div>
+      <div class="date" id="date"></div>
+    </div>
+  </header>
+
+  <main class="grid">
+    {% for tile in travel_lab_tv_tiles %}
+    {% set is_wifi = (tile.action | default('')) == 'wifi' %}
+    <a class="tile{% if is_wifi %} tile--wifi{% endif %}"
+       href="{{ tile.url }}"
+       data-tile
+       style="--accent: {{ tile.accent }};"
+       {% if not loop.first %}tabindex="-1"{% endif %}>
+      {% if is_wifi and travel_lab_tv_wifi_ready | bool %}
+        <img class="tile-qr" src="wifi-qr.svg" alt="Wi-Fi QR code">
+      {% else %}
+        <span class="tile-icon">{{ icons.icon(tile.icon) }}</span>
+      {% endif %}
+      <span class="tile-copy">
+        <span class="tile-label">{{ tile.label }}</span>
+        {% if is_wifi %}
+          <span class="tile-meta">
+            {%- if travel_lab_tv_wifi_ready | bool -%}
+              {{ travel_lab_wifi_ssid }}
+            {%- else -%}
+              Setup pending
+            {%- endif -%}
+          </span>
+        {% endif %}
+      </span>
+    </a>
+    {% endfor %}
+
+    <a class="tile tile--weather"
+       href="forecast.html"
+       data-tile
+       id="weather"
+       tabindex="-1"
+       aria-label="Weather forecast"
+       style="--accent: #7CC7FF;">
+      <svg class="wx-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <use id="wx-icon-use" href="#wx-cloud"></use>
+      </svg>
+      <span class="wx-temp" id="wx-temp">--°</span>
+      <span class="wx-range" id="wx-range">H --° · L --°</span>
+      <span class="wx-place" id="wx-place"></span>
+    </a>
+  </main>
+
+  <footer class="hints">
+    <span><b>Enter</b> open</span>
+    <span><b>Alt+&larr;</b> back</span>
+    <span><b>Alt+Home</b> home</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,5 +1,7 @@
 [Unit]
 Description=Kiwix offline ZIM server
+# Stay inactive (not failed) until the NVMe volume is mounted.
+ConditionPathIsMountPoint={{ travel_lab_storage }}
 
 [Container]
 Image={{ travel_lab_images.kiwix }}

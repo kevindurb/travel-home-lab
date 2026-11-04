@@ -22,16 +22,17 @@
     mode: "0755"
   loop: "{{ travel_lab_configs.keys() | list }}"
 
-- name: Create the Jellyfin state directories
-  ansible.builtin.file:
-    path: "{{ travel_lab_jellyfin_state }}/{{ item }}"
-    state: directory
-    mode: "0755"
-  loop: [config, cache]
-
 - name: Create the quadlet unit directory
   ansible.builtin.file:
     path: "{{ travel_lab_unit_dir }}"
+    state: directory
+    mode: "0755"
+
+# The travel-tv container bind-mounts this path, so it must exist (and be
+# user-owned) before Podman starts the container.
+- name: Create the Travel TV web root
+  ansible.builtin.file:
+    path: "{{ travel_lab_tv_www }}"
     state: directory
     mode: "0755"
 
@@ -58,13 +59,69 @@
 - name: Generate the systemd units before starting anything
   ansible.builtin.meta: flush_handlers
 
+# --- storage ----------------------------------------------------------------
+# The NVMe is optional at deploy time. Jellyfin and Kiwix must not start on a
+# bare /mnt/storage directory, so they are skipped while it is absent.
+- name: Check whether the storage volume is mounted
+  ansible.builtin.command: /usr/bin/mountpoint -q {{ travel_lab_storage }}
+  register: travel_lab_storage_check
+  changed_when: false
+  failed_when: false
+
+- name: Record storage availability
+  ansible.builtin.set_fact:
+    travel_lab_storage_available: "{{ travel_lab_storage_check.rc == 0 }}"
+
+# Only touch the SSD state paths when it is actually mounted; otherwise these
+# would be created on the SD card root.
+- name: Create the Jellyfin state directories
+  ansible.builtin.file:
+    path: "{{ travel_lab_jellyfin_state }}/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop: [config, cache]
+  when: travel_lab_storage_available | bool
+
+- name: Warn when storage is not mounted
+  ansible.builtin.debug:
+    msg:
+      - "{{ travel_lab_storage }} is not mounted."
+      - "Jellyfin and Kiwix will be left stopped; everything else still deploys."
+      - "Connect the storage and re-run `just deploy` (or start both units manually)."
+  when: not (travel_lab_storage_available | bool)
+
+- name: Choose the containers to start
+  ansible.builtin.set_fact:
+    travel_lab_start_containers: >-
+      {{ travel_lab_containers | difference(travel_lab_storage_containers)
+         if not (travel_lab_storage_available | bool)
+         else travel_lab_containers }}
+
+- name: Stop storage containers while the volume is absent
+  ansible.builtin.systemd_service:
+    name: "{{ item }}.service"
+    state: stopped
+    scope: user
+  loop: "{{ travel_lab_storage_containers }}"
+  when: not (travel_lab_storage_available | bool)
+  environment: "{{ travel_lab_user_env }}"
+
+# A unit that failed before ConditionPathIsMountPoint existed stays in the
+# "failed" state even after a successful stop; clear it so status is inactive.
+- name: Clear stale failed state on storage containers
+  ansible.builtin.command: systemctl --user reset-failed {{ item }}
+  loop: "{{ travel_lab_storage_containers }}"
+  when: not (travel_lab_storage_available | bool)
+  changed_when: false
+  environment: "{{ travel_lab_user_env }}"
+
 # --- run --------------------------------------------------------------------
 - name: Start the stack
   ansible.builtin.systemd_service:
     name: "{{ item }}.service"
     state: started
     scope: user
-  loop: "{{ travel_lab_containers }}"
+  loop: "{{ travel_lab_start_containers }}"
   environment: "{{ travel_lab_user_env }}"
 
 - name: Note which container units changed
@@ -86,7 +143,11 @@
     state: restarted
     scope: user
   loop: "{{ travel_lab_units_render.results | selectattr('changed') | list }}"
-  when: item.item.endswith('.container')
+  when:
+    - item.item.endswith('.container')
+    - >-
+      (travel_lab_storage_available | bool)
+      or ((item.item | regex_replace('\.container$', '')) not in travel_lab_storage_containers)
   loop_control:
     label: "{{ item.item }}"
   environment: "{{ travel_lab_user_env }}"

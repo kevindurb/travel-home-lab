@@ -8,7 +8,8 @@
 #     caddy_config) -- they hold real state, see README.md
 #   * Jellyfin state under /mnt/storage/jellyfin
 #   * images
-#   * the rendered config files under ~/.config/{gatus,homer,tailscale}
+#   * the rendered config files under ~/.config/{gatus,homer,tailscale,travel-tv}
+#   * the HDMI kiosk system unit (use `just tv-teardown` for that)
 #   * the Tailscale Serve configuration (clear it with `tailscale serve reset`)
 #   * the Pi's clone of this repo, if any
 #

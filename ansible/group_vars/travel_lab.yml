@@ -16,6 +16,10 @@ travel_lab_user: kevindurb
 travel_lab_tailnet_domain: beaver-cloud.ts.net
 travel_lab_storage: /mnt/storage
 travel_lab_jellyfin_state: "{{ travel_lab_storage }}/jellyfin"
+# Containers that must not start while /mnt/storage is absent.
+travel_lab_storage_containers:
+  - jellyfin
+  - kiwix
 
 # --- paths on the Pi --------------------------------------------------------
 # Derived from facts, which are gathered as the SSH user (the deploy play runs
@@ -41,6 +45,70 @@ travel_lab_auto_update: true
 
 travel_lab_network: travel-home-lab
 
+# --- Travel TV (HDMI kiosk) -------------------------------------------------
+# Static 10ft launcher served by nginx and fronted by svc:travel-tv. The Pi's
+# HDMI output runs Cage + Firefox at boot. See docs/hdmi-tv.md.
+travel_lab_tv_url: "https://{{ travel_lab_tailscale_services.tv.service }}.{{ travel_lab_tailnet_domain }}"
+travel_lab_tv_www: "{{ travel_lab_config_root }}/travel-tv/www"
+travel_lab_tv_profile: "{{ travel_lab_home }}/.local/share/travel-tv/firefox"
+# Raspberry Pi OS ships `firefox`; switch both values to firefox-esr if the
+# image only has Debian's ESR package.
+travel_lab_tv_firefox_package: firefox
+travel_lab_tv_firefox_bin: firefox
+# qrencode runs on the controller so the PSK never reaches the Pi in plaintext.
+travel_lab_tv_qrencode_bin: qrencode
+
+# Weather tile / forecast page. Leave lat/lon/city empty to resolve the
+# location from the travel router's public IP; set them to pin a location.
+travel_lab_weather_units: fahrenheit
+travel_lab_weather_latitude: ""
+travel_lab_weather_longitude: ""
+travel_lab_weather_city: ""
+
+# The real values live in the encrypted host_vars/travel-lab/vault.yml. These
+# placeholders keep the page renderable before the vault is filled in.
+travel_lab_wifi_ssid: "REPLACE_ME"
+travel_lab_wifi_psk: "REPLACE_ME"
+travel_lab_wifi_security: WPA
+travel_lab_wifi_hidden: false
+travel_lab_tv_wifi_ready: >-
+  {{ travel_lab_wifi_ssid | length > 0 and travel_lab_wifi_psk | length > 0 }}
+travel_lab_tv_wifi_placeholder: >-
+  {{ travel_lab_wifi_ssid == 'REPLACE_ME' or travel_lab_wifi_psk == 'REPLACE_ME' }}
+
+travel_lab_tv_tiles:
+  - id: jellyfin
+    label: Jellyfin
+    icon: jellyfin
+    accent: "#AA5CC3"
+    url: "https://{{ travel_lab_tailscale_services.jellyfin.service }}.{{ travel_lab_tailnet_domain }}"
+  - id: youtube
+    label: YouTube
+    icon: youtube
+    accent: "#FF0033"
+    url: "https://www.youtube.com/tv#/"
+  - id: netflix
+    label: Netflix
+    icon: netflix
+    accent: "#E50914"
+    url: "https://www.netflix.com/"
+  - id: disney
+    label: Disney+
+    icon: disney
+    accent: "#113CCF"
+    url: "https://www.disneyplus.com/"
+  - id: read
+    label: Read
+    icon: kiwix
+    accent: "#00A6A6"
+    url: "https://{{ travel_lab_tailscale_services.kiwix.service }}.{{ travel_lab_tailnet_domain }}"
+  - id: wifi
+    label: Wi-Fi
+    icon: wifi
+    accent: "#FFC46B"
+    action: wifi
+    url: "wifi.html"
+
 # --- ingress: Tailscale Services --------------------------------------------
 # One Tailscale Service per app, replacing the old Caddy reverse proxy. Each
 # container publishes its port on 127.0.0.1:<local_port>; `tailscale serve`
@@ -62,6 +130,7 @@ travel_lab_tailscale_services:
   dozzle:   { service: travel-dozzle,   local_port: 18082 }
   homer:    { service: travel-home,     local_port: 18083 }
   whoami:   { service: travel-whoami,   local_port: 18084 }
+  tv:       { service: travel-tv,       local_port: 18085 }
 
 # --- images -----------------------------------------------------------------
 # Pinned to :latest to match the stack's long-standing behaviour. To pin, just
@@ -74,6 +143,7 @@ travel_lab_images:
   homer: docker.io/b4bz/homer:latest
   jellyfin: docker.io/jellyfin/jellyfin:latest
   kiwix: ghcr.io/kiwix/kiwix-serve:latest
+  tv: docker.io/library/nginx:alpine
   whoami: docker.io/traefik/whoami:latest
 
 # --- service shape ----------------------------------------------------------
@@ -86,6 +156,7 @@ travel_lab_containers:
   - dozzle
   - glances
   - homer
+  - travel-tv
   - whoami
 
 # Every quadlet unit rendered into travel_lab_unit_dir (containers + volumes +
@@ -101,4 +172,5 @@ travel_lab_units:
   - homer.container
   - jellyfin.container
   - kiwix.container
+  - travel-tv.container
   - whoami.container

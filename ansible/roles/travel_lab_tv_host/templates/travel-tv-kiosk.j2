@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Wait for an HDMI display and the Travel TV service, then hand the TV to
+# Cage + Firefox. Cage exits when its last output disappears, so the loop
+# relaunches it after the cable is plugged back in.
+set -euo pipefail
+
+URL="{{ travel_lab_tv_url }}"
+PROFILE="{{ travel_lab_tv_profile }}"
+FIREFOX="{{ travel_lab_tv_firefox_bin }}"
+
+export HOME="{{ travel_lab_home }}"
+export XDG_RUNTIME_DIR="/run/user/{{ travel_lab_uid }}"
+export MOZ_ENABLE_WAYLAND=1
+export MOZ_CRASHREPORTER_DISABLE=1
+
+log() { echo "travel-tv: $*"; }
+
+log "waiting for an HDMI display"
+while true; do
+  until grep -qs '^connected' /sys/class/drm/card*-HDMI-A-*/status 2>/dev/null; do
+    sleep 2
+  done
+
+  log "waiting for ${URL}"
+  until curl -fsS --max-time 3 "$URL" >/dev/null 2>&1; do
+    sleep 2
+  done
+
+  log "starting kiosk"
+  cage -- "$FIREFOX" --kiosk --no-remote -profile "$PROFILE" "$URL" || true
+  log "kiosk exited; restarting"
+  sleep 2
+done

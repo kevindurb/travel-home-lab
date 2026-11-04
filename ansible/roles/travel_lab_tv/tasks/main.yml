@@ -1,0 +1,153 @@
+---
+# Render the Travel TV launcher, its Wi-Fi QR and the Firefox kiosk profile.
+# Runs as the stack user (no become); the kiosk itself is installed by the
+# travel_lab_tv_host role in the host play.
+
+- name: Create the Travel TV web root
+  ansible.builtin.file:
+    path: "{{ travel_lab_tv_www }}"
+    state: directory
+    mode: "0755"
+
+- name: Create the Firefox kiosk profile directories
+  ansible.builtin.file:
+    path: "{{ travel_lab_tv_profile }}/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - ""
+    - chrome
+
+# Write the prefs before the page becomes reachable so a first boot does not
+# race into a fresh, chrome-laden Firefox profile.
+- name: Install the Firefox kiosk preferences
+  ansible.builtin.template:
+    src: firefox/user.js.j2
+    dest: "{{ travel_lab_tv_profile }}/user.js"
+    mode: "0644"
+
+- name: Install the Firefox chrome overrides
+  ansible.builtin.copy:
+    src: firefox/userChrome.css
+    dest: "{{ travel_lab_tv_profile }}/chrome/userChrome.css"
+    mode: "0644"
+
+# --- Wi-Fi QR ---------------------------------------------------------------
+# qrencode runs on the controller. The PSK is never passed to the Pi in
+# plaintext; only the rendered SVG is copied across.
+- name: Check for qrencode on the controller
+  ansible.builtin.command: "{{ travel_lab_tv_qrencode_bin }} --version"
+  delegate_to: localhost
+  check_mode: false
+  changed_when: false
+  failed_when: false
+  register: travel_lab_tv_qrencode
+
+- name: Require qrencode to render the Wi-Fi QR
+  ansible.builtin.assert:
+    that:
+      - travel_lab_tv_qrencode.rc == 0
+    fail_msg: >-
+      qrencode is required on the workstation to render the Wi-Fi QR.
+      Install it (brew install qrencode) or set travel_lab_tv_qrencode_bin.
+  when: travel_lab_tv_wifi_ready | bool
+
+- name: Create a temporary QR file on the controller
+  ansible.builtin.tempfile:
+    state: file
+    suffix: .svg
+  delegate_to: localhost
+  register: travel_lab_tv_qr_tmp
+  changed_when: false
+  when:
+    - travel_lab_tv_wifi_ready | bool
+    - not ansible_check_mode
+
+- name: Render the Wi-Fi join QR
+  ansible.builtin.command:
+    argv:
+      - "{{ travel_lab_tv_qrencode_bin }}"
+      - -t
+      - SVG
+      - -l
+      - M
+      - -m
+      - "4"
+      - -s
+      - "10"
+      - -o
+      - "{{ travel_lab_tv_qr_tmp.path | default('') }}"
+      - >-
+        {{ travel_lab_wifi_ssid | wifi_qr(
+             travel_lab_wifi_psk,
+             travel_lab_wifi_security,
+             travel_lab_wifi_hidden) }}
+  delegate_to: localhost
+  no_log: true
+  changed_when: false
+  when:
+    - travel_lab_tv_wifi_ready | bool
+    - not ansible_check_mode
+
+- name: Install the Wi-Fi QR
+  ansible.builtin.copy:
+    src: "{{ travel_lab_tv_qr_tmp.path | default('') }}"
+    dest: "{{ travel_lab_tv_www }}/wifi-qr.svg"
+    mode: "0644"
+  when:
+    - travel_lab_tv_wifi_ready | bool
+    - not ansible_check_mode
+
+- name: Remove the temporary QR
+  ansible.builtin.file:
+    path: "{{ travel_lab_tv_qr_tmp.path | default('') }}"
+    state: absent
+  delegate_to: localhost
+  changed_when: false
+  when:
+    - travel_lab_tv_wifi_ready | bool
+    - not ansible_check_mode
+
+- name: Warn about placeholder Wi-Fi credentials
+  ansible.builtin.debug:
+    msg: >-
+      Wi-Fi credentials are still placeholders. Run `just vault-edit` to set
+      travel_lab_wifi_ssid and travel_lab_wifi_psk, then re-run `just deploy`.
+  when: travel_lab_tv_wifi_placeholder | bool
+
+# --- audio ------------------------------------------------------------------
+# Firefox needs a PulseAudio/PipeWire endpoint for HDMI audio. These are user
+# units; the user manager is already running because Linger=yes.
+- name: Enable the PipeWire user services
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+    scope: user
+  loop:
+    - pipewire.socket
+    - pipewire-pulse.socket
+    - wireplumber.service
+  environment: "{{ travel_lab_user_env }}"
+
+# --- page -------------------------------------------------------------------
+# Assets first, pages last: the supervisor treats a 200 on index.html as "ready",
+# so nothing the page references should still be missing.
+- name: Install the Travel TV static assets
+  ansible.builtin.copy:
+    src: "tv/{{ item }}"
+    dest: "{{ travel_lab_tv_www }}/{{ item }}"
+    mode: "0644"
+  loop:
+    - style.css
+    - app.js
+
+- name: Render the Travel TV pages
+  ansible.builtin.template:
+    src: "tv/{{ item }}.j2"
+    dest: "{{ travel_lab_tv_www }}/{{ item }}"
+    mode: "0644"
+  loop:
+    - forecast.html
+    - wifi.html
+    - index.html

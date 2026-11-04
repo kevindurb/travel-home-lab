@@ -1,0 +1,11 @@
+# Hide any residual chrome if --kiosk ever leaves it visible.
+# Applied because toolkit.legacyUserProfileCustomizations.stylesheets=true.
+#TabsToolbar,
+#nav-bar,
+#PersonalToolbar {
+  visibility: collapse !important;
+}
+
+#fullscr-toggler {
+  display: none !important;
+}

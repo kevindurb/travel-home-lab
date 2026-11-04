@@ -10,9 +10,11 @@
   become: true
   roles:
     - travel_lab_host
+    - travel_lab_tv_host
 
 - name: Deploy the travel lab stack
   hosts: travel_lab
   become: false
   roles:
     - travel_lab
+    - travel_lab_tv

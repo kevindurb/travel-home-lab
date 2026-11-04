@@ -1,0 +1,35 @@
+[Unit]
+Description=Travel TV kiosk (Cage + Firefox on HDMI)
+After=systemd-user-sessions.service plymouth-quit-wait.service
+After=getty@tty1.service
+Conflicts=getty@tty1.service
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/dev/tty0
+Wants=dbus.socket systemd-logind.service
+After=dbus.socket systemd-logind.service
+
+[Service]
+Type=simple
+User={{ travel_lab_user }}
+PAMName=cage
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+StandardInput=tty-fail
+StandardOutput=journal
+StandardError=journal
+UtmpIdentifier=tty1
+UtmpMode=user
+Environment=HOME={{ travel_lab_home }}
+Environment=XDG_RUNTIME_DIR=/run/user/{{ travel_lab_uid }}
+Environment=MOZ_ENABLE_WAYLAND=1
+Environment=MOZ_CRASHREPORTER_DISABLE=1
+ExecStart=/usr/local/bin/travel-tv-kiosk
+ExecStartPost=+sh -c 'chvt 1'
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
