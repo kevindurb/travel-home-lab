@@ -23,6 +23,12 @@ Ansible runs on the workstation and pushes to the Pi over Tailscale. **The
 repository no longer needs to exist on the Pi** — the quadlets and config files
 are rendered onto it.
 
+The **travel-tv** container is the one image built from this repository: a Go
+app in [`travel-tv/`](travel-tv/) that serves the launcher and phone remote and
+injects Wayland input. GitHub Actions publishes it to
+`ghcr.io/kevindurb/travel-home-lab/travel-tv`; the Pi pulls it like any other
+stack image.
+
 ## Prerequisites (workstation)
 
 ```bash
@@ -75,9 +81,7 @@ Travel TV service, starts normally. Connect the NVMe and re-run `just deploy`
 ~/.config/containers/systemd/           # 12 quadlet units: 1 network, 3 volumes, 8 containers
 ~/.config/gatus/config.yml
 ~/.config/homer/config.yml
-~/.config/travel-tv/                    # page, nginx config and remote socket dir
-~/.config/systemd/user/travel-tv-remote.service
-~/.local/bin/travel-tv-remote           # phone-remote API
+~/.config/travel-tv/www/                # rendered page, QR codes and remote
 ~/.local/share/travel-tv/firefox/       # persistent kiosk profile
 /etc/systemd/system/tv-kiosk.service    # HDMI kiosk (system unit)
 ```
@@ -100,6 +104,10 @@ with tabs for Controls, Shortcuts, Type and Trackpad: D-pad, trackpad, app
 launch, volume and text entry. Scan the Remote tile's QR (or open the short
 `https://travel-tv.<tailnet>/r`) to get there.
 
+The launcher and remote are served by the `travel-tv` Go container; there is no
+nginx or Python user service. The image bundles `wtype`/`wlrctl` and controls
+volume through `pipewire-pulse`.
+
 Prerequisites: create `svc:travel-tv` in the Tailscale admin console and set
 the Wi-Fi vault values with `just vault-edit`. Full details, one-time
 Jellyfin/Netflix setup, audio notes and troubleshooting are in
@@ -119,6 +127,7 @@ just tv-logs
 just tv-remote-status
 just tv-remote-logs
 just tv-remote-health
+just tv-test
 just vault-view
 ```
 
@@ -129,7 +138,7 @@ systemctl --user status jellyfin
 journalctl --user -u kiwix -f
 tailscale serve status
 systemctl status tv-kiosk
-systemctl --user status travel-tv-remote
+systemctl --user status travel-tv
 ```
 
 Quadlets autostart at boot via `[Install] WantedBy=default.target` plus
@@ -175,16 +184,22 @@ from the pre-Ansible state, where the timer was disabled and `AutoUpdate=` did
 nothing. See [docs/ansible-migration.md](docs/ansible-migration.md) for the
 caveat about `:latest` on the stateful services.
 
+The `travel-tv` image is rebuilt by GitHub Actions on every `main` push under
+`travel-tv/` and published as `:latest`. The Pi's auto-update timer picks it up.
+After the very first publish, set the GHCR package visibility to **Public** so
+the Pi can pull it anonymously.
+
 ## Tear down
 
 ```bash
 just teardown       # stack: stop and remove the quadlet units
-just tv-teardown    # kiosk + phone remote: stop/remove the units; leaves packages + profile
+just tv-teardown    # kiosk: stop/remove the kiosk; removes legacy remote artifacts
 ```
 
 Stops the stack and removes the quadlet units this repo manages. Images, the
 five volumes, and the rendered config files are left alone. `tv-teardown`
-also leaves the Firefox profile and page files; see
+also leaves the Firefox profile and page files; the phone remote lives in the
+`travel-tv` container, so `just teardown` removes it. See
 [docs/hdmi-tv.md](docs/hdmi-tv.md#11-teardown).
 
 ## Rollback

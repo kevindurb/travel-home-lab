@@ -9,9 +9,6 @@ travel_lab_configs:
   homer:
     src: homer-config.yml.j2
     dest: "{{ travel_lab_config_root }}/homer/config.yml"
-  travel-tv:
-    src: tv-nginx.conf.j2
-    dest: "{{ travel_lab_config_root }}/travel-tv/nginx.conf"
 
 # Value stamped into every unit's AutoUpdate= line.
 travel_lab_auto_update_value: >-

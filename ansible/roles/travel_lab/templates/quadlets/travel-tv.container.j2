@@ -1,17 +1,29 @@
 [Unit]
-Description=Travel TV launcher (static 10ft page)
+Description=Travel TV launcher and phone remote (Go)
 
 [Container]
 Image={{ travel_lab_images.tv }}
 ContainerName=travel-tv
 Network={{ travel_lab_network }}.network
 # Loopback only: tailscaled proxies travel-tv.<tailnet> here.
-PublishPort=127.0.0.1:{{ travel_lab_tailscale_services.tv.local_port }}:80
-Volume=%h/.config/travel-tv/www:/usr/share/nginx/html:ro,z
-Volume=%h/.config/travel-tv/nginx.conf:/etc/nginx/conf.d/default.conf:ro,z
-# The phone-remote API's Unix socket. The socket is mode 0666 so the
-# rootless container's nginx worker (a mapped subuid) can connect to it.
-Volume=%h/.config/travel-tv/run:/run/travel-tv:z
+PublishPort=127.0.0.1:{{ travel_lab_tailscale_services.tv.local_port }}:{{ travel_lab_tv_listen_port }}
+# The Ansible-rendered launcher/remote pages and QR SVGs.
+Volume=%h/.config/travel-tv/www:/usr/share/travel-tv/www:ro,z
+# The kiosk's Wayland and PipeWire-Pulse sockets. The app injects input with
+# the bundled wtype/wlrctl and controls volume through pipewire-pulse.
+Volume=/run/user/{{ travel_lab_uid }}:/run/user/{{ travel_lab_uid }}:rw
+Environment=TRAVEL_TV_LISTEN=:{{ travel_lab_tv_listen_port }}
+Environment=TRAVEL_TV_WWW=/usr/share/travel-tv/www
+Environment=XDG_RUNTIME_DIR=/run/user/{{ travel_lab_uid }}
+Environment=PULSE_SERVER=unix:/run/user/{{ travel_lab_uid }}/pulse/native
+Environment=TRAVEL_TV_REMOTE_SETTLE_MS={{ travel_lab_tv_remote_settle_ms }}
+Environment=HOME=/root
+Environment=LANG=C.UTF-8
+# wtype writes its temporary XKB keymap to /tmp.
+Tmpfs=/tmp:rw,size=8m,mode=1777
+ReadOnly=true
+DropCapability=ALL
+NoNewPrivileges=true
 AutoUpdate={{ travel_lab_auto_update_value }}
 
 [Service]

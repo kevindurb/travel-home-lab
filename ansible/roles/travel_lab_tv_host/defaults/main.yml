@@ -2,15 +2,14 @@
 # Packages for the HDMI kiosk. Widevine is installed separately (it is not
 # available on every Raspberry Pi OS image) so the kiosk still works without
 # Netflix/Disney+ DRM.
-# wtype and wlrctl back the phone remote's virtual keyboard and pointer.
+# The travel-tv Go image bundles wtype and wlrctl; the host only needs the
+# compositor, browser and audio services.
 travel_lab_tv_host_packages:
   - cage
   - "{{ travel_lab_tv_firefox_package }}"
   - pipewire
   - pipewire-pulse
   - wireplumber
-  - wtype
-  - wlrctl
   - curl
   - kbd
   - ca-certificates

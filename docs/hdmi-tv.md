@@ -3,7 +3,7 @@
 The Travel TV turns the Pi's HDMI output into a 10ft hotel-room launcher:
 Jellyfin, YouTube, Netflix, Disney+, Spotify, Read (Kiwix), a Wi-Fi QR, a
 weather tile with a 12-hour/5-day forecast, and a phone-remote QR. It is served
-by a small nginx container and displayed by Cage + Firefox on `tty1`, with no
+by a small Go container and displayed by Cage + Firefox on `tty1`, with no
 desktop environment.
 
 A phone remote at `/remote.html` (or the short `/r`) drives the kiosk: D-pad,
@@ -11,16 +11,16 @@ trackpad, app launch, volume and text entry. It works inside external apps too,
 because it injects input at the Wayland compositor rather than into the page.
 
 ```
-                    tailnet                         HDMI
-  phone/laptop ──► svc:travel-tv ──► nginx:18085 ──► Cage ──► Firefox
-                                                        │
-                                                        └──► launcher page
+                    tailnet                                  HDMI
+  phone/laptop ──► svc:travel-tv ──► travel-tv (Go):18085 ──► Cage ──► Firefox
+                                                              │
+                                                              └──► launcher page
 ```
 
-The phone remote adds a second path:
+The phone remote is part of the same container:
 
 ```
-  phone ──► /api/ ──► travel-tv-remote ──► wtype / wlrctl ──► Cage
+  phone ──► /api/ ──► travel-tv Go app ──► wtype / wlrctl ──► Cage
 ```
 
 The page itself is a normal Tailscale Service, so it is also reachable at
@@ -36,20 +36,17 @@ On the Pi:
 
 | Path | Purpose |
 |---|---|
+| `~/.config/containers/systemd/travel-tv.container` | Go app: launcher page, phone remote and CPR News proxy |
 | `~/.config/travel-tv/www/` | rendered launcher and remote pages (`index.html`, `remote.html`, CSS, JS, QR SVGs) |
-| `~/.config/travel-tv/nginx.conf` | nginx config (`Cache-Control: no-store`, `/api/` proxy) |
-| `~/.config/travel-tv/run/` | phone-remote Unix socket (`remote.sock`) |
-| `~/.local/bin/travel-tv-remote` | phone-remote API (stdlib Python) |
-| `~/.config/systemd/user/travel-tv-remote.service` | phone-remote API user unit |
 | `~/.local/share/travel-tv/firefox/` | persistent Firefox profile (logins, zoom, TV mode) |
 | `/etc/systemd/system/tv-kiosk.service` | Cage + Firefox supervisor on `tty1` |
 | `/etc/pam.d/cage` | logind session stack for Cage |
 | `/usr/local/bin/travel-tv-kiosk` | waits for HDMI + URL, then runs Cage |
 
-The `travel-tv` nginx container is part of the normal stack and publishes
-`127.0.0.1:18085`; `tailscale serve` fronts it as `svc:travel-tv`. The remote
-API is a user service, not a container: it needs the kiosk's Wayland socket,
-and nginx proxies `/api/` to its Unix socket.
+The `travel-tv` Go container is part of the normal stack and publishes
+`127.0.0.1:18085`; `tailscale serve` fronts it as `svc:travel-tv`. It mounts the
+kiosk's runtime directory so it can reach the Wayland and PipeWire-Pulse
+sockets.
 
 ## 2. Before the first deploy
 
@@ -59,10 +56,11 @@ and nginx proxies `/api/` to its Unix socket.
    The QR codes are generated there and only the SVGs are copied to the Pi, so
    the Wi-Fi PSK never appears in the Pi's process list or logs. If it is not
    on `PATH`, set `travel_lab_tv_qrencode_bin`.
-3. `wtype` and `wlrctl` are installed by `just site` (they are in
-   `travel_lab_tv_host_packages`). `just deploy` alone does not install host
-   packages; the remote page will load but its buttons will not reach the TV
-   until they are present.
+3. The `travel-tv` image is built by GitHub Actions and must be published and
+   public in GHCR (see the README); `just deploy` pulls it. The image bundles
+   `wtype` and `wlrctl`, so `just site` only needs the kiosk packages (Cage,
+   Firefox, PipeWire). The host role warns if the installed Cage lacks
+   virtual-input support.
 4. The vault password file is `~/.vault_pass`; `ansible/ansible.cfg` points at
    it. The encrypted Wi-Fi values live in
    `ansible/host_vars/travel-lab/vault.yml`.
@@ -148,8 +146,8 @@ group-vars `REPLACE_ME` values are only fallbacks.
 The Remote tile is a normal one-cell tile with a preview of the remote URL's
 QR. Selecting it opens `remote-qr.html`, which shows the same code at 540px
 plus the short URL. The QR encodes
-`https://travel-tv.<tailnet>/r`, and nginx rewrites `/r` to `remote.html`, so
-the phone lands on the controller with no extra redirect.
+`https://travel-tv.<tailnet>/r`, and the Go app serves `remote.html` for `/r`,
+so the phone lands on the controller with no extra redirect.
 
 The QR is generated every deploy (it contains no secrets), independently of
 the Wi-Fi QR.
@@ -218,7 +216,7 @@ The page has a large play/pause button, previous/next station, a volume slider,
 and the six station tiles. Enter plays the focused station, Space toggles
 play/pause, `+` / `-` adjusts volume, and `Backspace` / `Esc` returns.
 
-CPR News is HTTP-only upstream, so the `travel-tv` nginx container proxies
+CPR News is HTTP-only upstream, so the `travel-tv` Go app proxies
 `/radio/cpr-news` to `stream2.cprnetwork.org`; the other stations are direct
 HTTPS streams. All stations require internet, but none require an account or
 DRM.
@@ -298,18 +296,18 @@ just tv-status          # systemctl status tv-kiosk
 just tv-logs            # journalctl -u tv-kiosk -f
 just tv-restart         # sudo systemctl restart tv-kiosk (after page/profile edits)
 just tv-page            # port-forward 18085 for a laptop preview
-just tv-remote-status   # systemctl --user status travel-tv-remote
-just tv-remote-logs     # journalctl --user-unit travel-tv-remote.service -f
-just tv-remote-health   # curl the API over its Unix socket
+just tv-remote-status   # systemctl --user status travel-tv
+just tv-remote-logs     # journalctl --user-unit travel-tv.service -f
+just tv-remote-health   # curl http://127.0.0.1:18085/api/health
 just vault-view         # show the decrypted Wi-Fi values
 ```
 
 The page is also at `https://travel-tv.beaver-cloud.ts.net`.
 
-Page/QR changes are served immediately (nginx `no-store`); Firefox may still
-need `just tv-restart` after a profile or `user.js` change. The supervisor
-reloads the launcher when the TV is replugged. The remote API is a user unit
-and restarts independently of the kiosk.
+Page/QR changes are served immediately (`Cache-Control: no-store`); Firefox may
+still need `just tv-restart` after a profile or `user.js` change. The supervisor
+reloads the launcher when the TV is replugged. The Go app is a normal stack
+quadlet and restarts independently of the kiosk.
 
 ## 9. Phone remote
 
@@ -340,23 +338,26 @@ limited to pages this repository owns.
 
 ### How it works
 
-- `travel-tv-remote` is a stdlib Python service in a **user** systemd unit. It
-  listens on `~/.config/travel-tv/run/remote.sock`; no TCP port is exposed.
-- The `travel-tv` nginx container mounts that directory at `/run/travel-tv` and
-  proxies `/api/` to the socket. The socket is mode `0666` so the rootless
-  nginx worker (a mapped subuid) can connect.
-- Keyboard and text use `wtype`; pointer actions use `wlrctl`; volume uses
-  `wpctl`. All helpers are invoked without a shell and the API checks every
+- `travel-tv` is one Go container in the normal rootless Podman stack. It
+  serves the rendered pages and `/api/` from the same port (`8080` in the
+  container, `127.0.0.1:18085` on the host).
+- It mounts the kiosk runtime directory so it can connect to Cage's Wayland
+  socket and the host's `pipewire-pulse` socket. No Unix socket or extra
+  container is involved.
+- Keyboard and text use the bundled `wtype`; pointer actions use the bundled
+  `wlrctl`. All helpers are invoked without a shell and the API checks every
   value against a small allowlist.
-- Volume prefers the PipeWire sink whose `node.name` contains `hdmi`; it falls
-  back to the default sink. If the TV's audio is silent, check
+- Volume is controlled directly over the PulseAudio protocol by the Go app,
+  which prefers the sink whose name/description contains `hdmi` and falls back
+  to the default sink. If the TV's audio is silent, check
   `wpctl status` / `wpctl set-default <HDMI-sink-id>` (section 7).
 
 ### Requirements and limits
 
-- `just site` installs `wtype` and `wlrctl` and the host role warns if the
-  installed Cage lacks virtual-input support. Cage 0.2.0+ (the Pi has 0.3.1)
-  advertises the virtual keyboard and pointer protocols.
+- The image is built by GitHub Actions from [`travel-tv/`](../travel-tv/) and
+  published to GHCR. The host role still warns if the installed Cage lacks
+  virtual-input support; Cage 0.2.0+ (the Pi has 0.3.1) advertises the virtual
+  keyboard and pointer protocols.
 - App launching is a timing-based key sequence. The default wait after
   `Alt+Home` is 2 seconds; raise `travel_lab_tv_remote_settle_ms` in
   `group_vars/travel_lab.yml` if a slow TV page causes missed launches.
@@ -386,21 +387,22 @@ limited to pages this repository owns.
   `just tv-remote-health`. With no HDMI display connected, Cage is not running,
   so there is no Wayland socket and the API correctly reports offline;
   `just tv-status` confirms the supervisor is idle. If `health` says
-  `"wtype": false` or `"wlrctl": false`, run `just site`.
+  `"wtype": false` or `"wlrctl": false`, the image is missing the helpers;
+  redeploy the `travel-tv` container.
 - **Remote buttons do nothing but health is OK** — `just tv-remote-logs` and
   check `last_error`. A missing virtual-input protocol or a lost Wayland socket
   is reported there. From the Pi, verify with
-  `XDG_RUNTIME_DIR=/run/user/$(id -u) WAYLAND_DISPLAY=wayland-0 wtype -k Right`
-  while the launcher is visible.
+  `podman exec travel-tv wtype -k Right` while the launcher is visible.
 - **Remote app launch misses** — the sequence waits
   `travel_lab_tv_remote_settle_ms` after `Alt+Home`. Raise it and redeploy; a
   slow page unload is the usual cause. D-pad navigation still works normally.
 - **Trackpad moves but the TV cursor is invisible** — Cage shows the cursor
   only while a pointer device is present; the virtual pointer should make it
-  appear. Check the TV input and `wlrctl pointer move 20 0` from the Pi.
-- **Remote volume does nothing** — the API prefers an HDMI sink, otherwise the
+  appear. Check the TV input and `podman exec travel-tv wlrctl pointer move 20 0`.
+- **Remote volume does nothing** — the app prefers an HDMI sink, otherwise the
   default sink. Check `wpctl status`; if HDMI audio is not the default, set it
-  once with `wpctl set-default <HDMI-sink-id>`.
+  once with `wpctl set-default <HDMI-sink-id>`. Also check
+  `systemctl --user status pipewire-pulse`; the app needs its Pulse socket.
 - **4K TV looks cramped or slow** — the CSS scales with `vh`/`vw`, but 4K
   Firefox on a Pi 4 is heavy. Prefer the TV's 1080p mode; forcing 1080p at the
   source is the easiest fix.
@@ -417,7 +419,8 @@ just tv-teardown
 ```
 
 Stops and disables `tv-kiosk.service`, removes the unit, `/etc/pam.d/cage` and
-the supervisor. It also stops and removes the `travel-tv-remote` user unit and
-its script. It leaves the packages, the Firefox profile, the rendered page and
-the `travel-tv` container. `just teardown` removes the stack/container; the
-profile and page files are intentionally left behind.
+the supervisor. It also removes any legacy `travel-tv-remote` user unit and
+script left from the pre-Go install. It leaves the packages, the Firefox
+profile, the rendered page and the `travel-tv` container. `just teardown`
+removes the stack/container (including the phone remote); the profile and page
+files are intentionally left behind.

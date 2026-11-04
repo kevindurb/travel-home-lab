@@ -70,16 +70,24 @@ tv-status:
 tv-logs:
   ssh -t travel-lab.beaver-cloud.ts.net 'journalctl -u tv-kiosk -f'
 
-# Phone remote API (a user unit, proxied by the travel-tv container).
+# Travel TV Go app (launcher + phone remote) status and logs. It is a user
+# quadlet, separate from the system-scoped kiosk.
 tv-remote-status:
-  ssh travel-lab.beaver-cloud.ts.net 'systemctl --user --no-pager status travel-tv-remote'
+  ssh travel-lab.beaver-cloud.ts.net 'systemctl --user --no-pager status travel-tv'
 
 tv-remote-logs:
-  ssh -t travel-lab.beaver-cloud.ts.net 'journalctl --user-unit travel-tv-remote.service -f'
+  ssh -t travel-lab.beaver-cloud.ts.net 'journalctl --user-unit travel-tv.service -f'
 
-# One-shot health check over the Unix socket (no tailnet round-trip).
+# One-shot API health check over the loopback publish port.
 tv-remote-health:
-  ssh travel-lab.beaver-cloud.ts.net 'curl -fsS --unix-socket ~/.config/travel-tv/run/remote.sock http://localhost/health'
+  ssh travel-lab.beaver-cloud.ts.net 'curl -fsS http://127.0.0.1:18085/api/health'
+
+# Build and test the TV app locally (the Pi pulls the published image).
+tv-test:
+  cd {{ justfile_directory() }}/travel-tv && go test ./...
+
+tv-build:
+  podman build -t travel-tv:dev {{ justfile_directory() }}/travel-tv
 
 # Restart Firefox/Cage after a page or profile change. Prompts for sudo.
 tv-restart:

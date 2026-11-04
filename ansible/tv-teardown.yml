@@ -3,7 +3,7 @@
 #   * the kiosk packages (cage, Firefox, PipeWire, Widevine)
 #   * ~/.local/share/travel-tv/firefox (Jellyfin/Netflix logins)
 #   * the rendered page under ~/.config/travel-tv
-#   * the travel-tv container (removed by `just teardown`)
+#   * the travel-tv container (page + phone remote; removed by `just teardown`)
 #
 #   ansible-playbook tv-teardown.yml --ask-become-pass
 #
@@ -37,11 +37,11 @@
           - "Kiosk removed; packages, Firefox profile and page files remain."
           - "The travel-tv container is removed by `just teardown`."
 
-- name: Remove the Travel TV phone remote
+- name: Remove legacy Travel TV phone-remote artifacts
   hosts: travel_lab
   become: false
   tasks:
-    - name: Stop and disable the remote API
+    - name: Stop and disable the legacy remote API
       ansible.builtin.systemd_service:
         name: travel-tv-remote.service
         state: stopped
@@ -50,13 +50,15 @@
       failed_when: false
       environment: "{{ travel_lab_user_env }}"
 
-    - name: Remove the remote unit and API script
+    - name: Remove the legacy remote unit, script, nginx config and socket directory
       ansible.builtin.file:
         path: "{{ item }}"
         state: absent
       loop:
         - "{{ travel_lab_home }}/.config/systemd/user/travel-tv-remote.service"
         - "{{ travel_lab_home }}/.local/bin/travel-tv-remote"
+        - "{{ travel_lab_config_root }}/travel-tv/nginx.conf"
+        - "{{ travel_lab_config_root }}/travel-tv/run"
 
     - name: Reload the user systemd manager
       ansible.builtin.systemd_service:
