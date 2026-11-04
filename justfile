@@ -70,8 +70,7 @@ tv-status:
 tv-logs:
   ssh -t travel-lab.beaver-cloud.ts.net 'journalctl -u tv-kiosk -f'
 
-# Travel TV Go app (launcher + phone remote) status and logs. It is a user
-# quadlet, separate from the system-scoped kiosk.
+# Travel TV Go app (launcher + phone remote); user quadlet, not the kiosk.
 tv-remote-status:
   ssh travel-lab.beaver-cloud.ts.net 'systemctl --user --no-pager status travel-tv'
 
@@ -82,10 +81,11 @@ tv-remote-logs:
 tv-remote-health:
   ssh travel-lab.beaver-cloud.ts.net 'curl -fsS http://127.0.0.1:18085/api/health'
 
-# Build and test the TV app locally (the Pi pulls the published image).
+# Test the TV app locally (the Pi pulls the published image).
 tv-test:
   cd {{ justfile_directory() }}/travel-tv && go test ./...
 
+# Build the TV image locally for a quick smoke test.
 tv-build:
   podman build -t travel-tv:dev {{ justfile_directory() }}/travel-tv
 
