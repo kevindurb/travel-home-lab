@@ -50,6 +50,38 @@
     state: directory
     mode: "0755"
 
+# moonlight-web-stream keeps data.json (users, pairings, settings) in
+# <root>/server, which is bind-mounted from here.
+- name: Create the Moonlight data directory
+  ansible.builtin.file:
+    path: "{{ travel_lab_moonlight_config }}"
+    state: directory
+    mode: "0755"
+
+# The Moonlight media ports are UDP, which `tailscale serve` cannot proxy, so
+# they are published on the tailnet address and advertised as the WebRTC ICE
+# candidates. Read it before rendering the quadlets (also in --check, where
+# command tasks would otherwise be skipped).
+- name: Read the Pi's Tailscale IPv4 address
+  ansible.builtin.command: tailscale ip -4
+  register: travel_lab_tailscale_ip_cmd
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Require a Tailscale IPv4 address
+  ansible.builtin.assert:
+    that:
+      - travel_lab_tailscale_ip_cmd.rc == 0
+      - travel_lab_tailscale_ip_cmd.stdout | trim | length > 0
+    fail_msg: >-
+      `tailscale ip -4` returned no address. The Moonlight WebRTC media ports
+      must bind to the tailnet address; make sure tailscaled is running.
+
+- name: Record the Tailscale IPv4 address
+  ansible.builtin.set_fact:
+    travel_lab_tailnet_ip: "{{ travel_lab_tailscale_ip_cmd.stdout_lines | first | trim }}"
+
 # --- render -----------------------------------------------------------------
 - name: Render the service config files
   ansible.builtin.template:

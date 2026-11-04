@@ -216,6 +216,7 @@
   loop:
     - style.css
     - app.js
+    - bluetooth.js
     - remote.css
     - remote.js
 
@@ -230,4 +231,7 @@
     - radio.html
     - remote-qr.html
     - remote.html
+    - settings.html
+    - bluetooth.html
+    - about.html
     - index.html

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Travel Lab &mdash; About</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="about">
+  <header class="top">
+    <a class="back" href="settings.html" data-back>&larr; Settings</a>
+    <div class="when">
+      <div class="clock" id="clock">--:--</div>
+      <div class="date" id="date"></div>
+    </div>
+  </header>
+
+  <main class="about">
+    <div class="about-hero">
+      <div class="about-title">Travel Lab</div>
+      <div class="about-sub">
+        {{ ansible_facts['model'] | default('Raspberry Pi', true) }}
+        &middot; {{ ansible_facts['distribution'] | default('Linux') }}
+        {{ ansible_facts['distribution_version'] | default('') }}
+      </div>
+    </div>
+
+    <dl class="about-grid">
+      <div class="about-item">
+        <dt>Travel TV</dt>
+        <dd id="about-version">&mdash;</dd>
+      </div>
+      <div class="about-item">
+        <dt>Kernel</dt>
+        <dd>{{ ansible_facts['kernel'] | default('unknown') }}</dd>
+      </div>
+      <div class="about-item">
+        <dt>Tailnet</dt>
+        <dd>{{ travel_lab_tailnet_domain }}</dd>
+      </div>
+      <div class="about-item">
+        <dt>Kiosk</dt>
+        <dd>Cage + {{ travel_lab_tv_firefox_bin }}</dd>
+      </div>
+    </dl>
+
+    <div class="about-section-title">Services</div>
+    <div class="about-services">
+      {% for key, svc in travel_lab_tailscale_services | dictsort %}
+      <div class="about-service">
+        <span class="about-service-name">{{ svc.service }}</span>
+        <span class="about-service-url">https://{{ svc.service }}.{{ travel_lab_tailnet_domain }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </main>
+
+  <footer class="hints">
+    <span><b>Esc</b> back</span>
+    <span><b>Start</b> settings</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

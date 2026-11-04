@@ -8,7 +8,8 @@
 #     retired caddy_data / caddy_config) -- they hold real state, see README.md
 #   * Jellyfin cache under /mnt/storage/jellyfin/cache
 #   * images
-#   * the rendered config files under ~/.config/{gatus,homer,tailscale,travel-tv}
+#   * the rendered config files under
+#     ~/.config/{gatus,homer,moonlight,tailscale,travel-tv}
 #   * the HDMI kiosk system unit (use `just tv-teardown` for that)
 #   * the Tailscale Serve configuration (clear it with `tailscale serve reset`)
 #   * the Pi's clone of this repo, if any
@@ -44,4 +45,4 @@
           - "Units removed; images and volumes untouched."
           - >-
             Rendered configs remain in {{ travel_lab_config_root }}/
-            (gatus, homer, tailscale).
+            (gatus, homer, moonlight, tailscale, travel-tv).

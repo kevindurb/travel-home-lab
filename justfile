@@ -49,7 +49,7 @@ ssh *args:
 
 # Container unit status on the Pi.
 status:
-  ssh travel-lab.beaver-cloud.ts.net 'systemctl --user --no-pager status kiwix jellyfin gatus glances dozzle homer travel-tv whoami'
+  ssh travel-lab.beaver-cloud.ts.net 'systemctl --user --no-pager status kiwix jellyfin gatus glances dozzle homer moonlight travel-tv whoami'
 
 # Tailscale Services the Pi is serving (name -> loopback proxy target).
 serves:
@@ -87,6 +87,17 @@ tv-remote-logs:
 # One-shot API health check over the loopback publish port.
 tv-remote-health:
   ssh travel-lab.beaver-cloud.ts.net 'curl -fsS http://127.0.0.1:18085/api/health'
+
+# Moonlight game-streaming bridge (user quadlet, not the kiosk).
+moonlight-status:
+  ssh travel-lab.beaver-cloud.ts.net 'systemctl --user --no-pager status moonlight'
+
+moonlight-logs:
+  ssh -t travel-lab.beaver-cloud.ts.net 'journalctl --user-unit moonlight.service -f'
+
+# Interactive BlueZ CLI, for pairing when the Settings page cannot (fallback).
+bluetooth:
+  ssh -t travel-lab.beaver-cloud.ts.net 'bluetoothctl'
 
 # Test the TV app locally (the Pi pulls the published image).
 tv-test:

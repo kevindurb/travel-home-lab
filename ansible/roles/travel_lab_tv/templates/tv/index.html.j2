@@ -15,9 +15,14 @@
   {% include "tv/weather-sprite.j2" %}
   <header class="top">
     <div class="brand">TRAVEL LAB</div>
-    <div class="when">
-      <div class="clock" id="clock">--:--</div>
-      <div class="date" id="date"></div>
+    <div class="top-right">
+      <a class="cog" href="settings.html" data-cog aria-label="Settings">
+        {{ icons.icon('cog') }}
+      </a>
+      <div class="when">
+        <div class="clock" id="clock">--:--</div>
+        <div class="date" id="date"></div>
+      </div>
     </div>
   </header>
 

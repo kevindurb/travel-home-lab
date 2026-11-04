@@ -12,6 +12,11 @@ Volume=%h/.config/travel-tv/www:/usr/share/travel-tv/www:ro,z
 # The kiosk's Wayland and PipeWire-Pulse sockets. The app injects input with
 # the bundled wtype/wlrctl and controls volume through pipewire-pulse.
 Volume=/run/user/{{ travel_lab_uid }}:/run/user/{{ travel_lab_uid }}:rw
+# The system bus, so the app can pair Bluetooth controllers through bluetoothd.
+# The container runs as root, which maps to the stack user, so D-Bus sees the
+# same uid the host policy allows.
+Volume=/run/dbus:/run/dbus:ro
+Environment=DBUS_SYSTEM_BUS_ADDRESS=unix:path=/run/dbus/system_bus_socket
 Environment=TRAVEL_TV_LISTEN=:{{ travel_lab_tv_listen_port }}
 Environment=TRAVEL_TV_WWW=/usr/share/travel-tv/www
 Environment=XDG_RUNTIME_DIR=/run/user/{{ travel_lab_uid }}

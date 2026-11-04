@@ -10,6 +10,10 @@ travel_lab_tv_host_packages:
   - pipewire
   - pipewire-pulse
   - wireplumber
+  - bluez
+  # rfkill is a separate package on Bookworm; the Bluetooth radio ships
+  # soft-blocked on Raspberry Pi OS and must be unblocked once.
+  - rfkill
   - curl
   - kbd
   - ca-certificates

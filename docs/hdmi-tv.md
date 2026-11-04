@@ -2,7 +2,8 @@
 
 The Travel TV turns the Pi's HDMI output into a 10ft hotel-room launcher:
 Jellyfin, YouTube, Netflix, Disney+, Spotify, Read (Kiwix), a Wi-Fi QR, a
-weather tile with a 12-hour/5-day forecast, and a phone-remote QR. It is served
+weather tile with a 12-hour/5-day forecast, a Moonlight game-streaming tile, a
+phone-remote QR, and a settings cog (Bluetooth controllers, About). It is served
 by a small Go container and displayed by Cage + Firefox on `tty1`, with no
 desktop environment.
 
@@ -36,8 +37,10 @@ On the Pi:
 
 | Path | Purpose |
 |---|---|
-| `~/.config/containers/systemd/travel-tv.container` | Go app: launcher page, phone remote and CPR News proxy |
-| `~/.config/travel-tv/www/` | rendered launcher and remote pages (`index.html`, `remote.html`, CSS, JS, QR SVGs) |
+| `~/.config/containers/systemd/travel-tv.container` | Go app: launcher, phone remote, Bluetooth API and CPR News proxy |
+| `~/.config/containers/systemd/moonlight.container` | `moonlight-web-stream`: Sunshine → WebRTC for the Games tile |
+| `~/.config/travel-tv/www/` | rendered launcher and remote pages (`index.html`, settings, Bluetooth, about, CSS, JS, QR SVGs) |
+| `~/.config/moonlight/` | `data.json`: Moonlight users, host pairings and stream settings |
 | `~/.local/share/travel-tv/firefox/` | persistent Firefox profile (logins, zoom, TV mode) |
 | `/etc/systemd/system/tv-kiosk.service` | Cage + Firefox supervisor on `tty1` |
 | `/etc/pam.d/cage` | logind session stack for Cage |
@@ -46,12 +49,14 @@ On the Pi:
 The `travel-tv` Go container is part of the normal stack and publishes
 `127.0.0.1:18085`; `tailscale serve` fronts it as `svc:travel-tv`. It mounts the
 kiosk's runtime directory so it can reach the Wayland and PipeWire-Pulse
-sockets.
+sockets, and the system D-Bus socket so it can pair controllers.
 
 ## 2. Before the first deploy
 
 1. Create `svc:travel-tv` in the Tailscale admin console (same as the other
-   services). The deploy will fail to publish it otherwise.
+   services). The deploy will fail to publish it otherwise. Moonlight needs no
+   Service: the kiosk loads it from loopback (see
+   [moonlight.md](moonlight.md)).
 2. Make sure `qrencode` is available on the workstation that runs Ansible.
    The QR codes are generated there and only the SVGs are copied to the Pi, so
    the Wi-Fi PSK never appears in the Pi's process list or logs. If it is not
@@ -111,19 +116,21 @@ travel_lab_tv_tiles:
   - { label: Radio, icon: radio, accent: "#E76F51", url: "radio.html" }
   - { label: PBS Kids, icon: pbskids, accent: "#2638C4", url: "https://pbskids.org/videos/" }
   - { label: Remote, icon: phone, accent: "#5CC8FF", action: remote, url: "remote-qr.html" }
+  - { label: Games, icon: gamepad, accent: "#7B5CFF", url: "http://127.0.0.1:18086" }
 ```
 
 The grid is **4 columns × 3 rows** at 1080p:
 
 - Row 1: Jellyfin, YouTube, Netflix, Disney+
 - Row 2: Read, Wi-Fi, Spotify, Weather
-- Row 3: Radio, PBS Kids, Remote, empty
+- Row 3: Radio, PBS Kids, Remote, Games
 
-All eleven tiles fit on one screen; the last cell is intentionally empty for a
-future app. Adding one more fills it; a thirteenth tile starts a fourth row and
-the grid scrolls (the header and footer stay fixed). Arrow keys move focus,
-Enter opens, and the focus navigation is geometry-based so the full grid and the
-weather tile do not break it.
+All twelve tiles fill one screen. A thirteenth tile starts a fourth row and the
+grid scrolls (the header and footer stay fixed). Arrow keys move focus, Enter
+opens, and the focus navigation is geometry-based so the full grid, the weather
+tile and the header cog do not break it. The settings cog is not a grid tile: it
+sits in the header and is appended to the focus ring, so the phone remote's
+tile indices are unchanged.
 
 Tile labels are text-only by design — no subtitles, descriptions or “web app”
 badges. To add a tile, add an entry to the list; the order is row-major. The
@@ -151,6 +158,15 @@ so the phone lands on the controller with no extra redirect.
 
 The QR is generated every deploy (it contains no secrets), independently of
 the Wi-Fi QR.
+
+### Games tile
+
+Selecting Games opens `http://127.0.0.1:18086`, the `moonlight-web-stream`
+bridge that relays a Sunshine host to Firefox over WebRTC. It is the one app
+not fronted by `tailscale serve` (see [moonlight.md](moonlight.md) for why), so
+the tile is a loopback URL rather than a `travel-*.<tailnet>` name. The Pi 4
+decodes H.264 only, so the host is pinned to H.264; setup, pairing and the
+network details are in [moonlight.md](moonlight.md).
 
 ### Weather and forecast
 
@@ -221,6 +237,25 @@ CPR News is HTTP-only upstream, so the `travel-tv` Go app proxies
 HTTPS streams. All stations require internet, but none require an account or
 DRM.
 
+### Settings, controllers and about
+
+The cog in the header opens `settings.html`:
+
+- **Bluetooth** (`bluetooth.html`) pairs and connects controllers. The Go app
+  talks to BlueZ over the system D-Bus socket (mounted into its container);
+  pairing uses a `NoInputNoOutput` agent, so gamepads pair without a PIN. A
+  paired pad is trusted, which is what makes it reconnect by itself when it
+  wakes up. Rows show connected state and battery where the pad reports it;
+  **Scan** lists nearby devices and **Pair** pairs and connects in one step.
+- **About** (`about.html`) shows the travel-tv version, board, kernel, tailnet
+  and the rendered service list.
+
+A connected controller drives every first-party page through the Gamepad API
+(no server round-trip): D-pad or left stick moves focus, **A** activates, **B**
+goes back, **X** or **Start** opens Settings, and **LB**/**RB** step the volume.
+The Moonlight page is a different origin, so it owns the pad while a stream is
+open. Firefox only exposes a pad after its first button press.
+
 ## 5. External services
 
 - **YouTube** uses the unofficial Leanback/TV UI at `youtube.com/tv`. It is
@@ -264,10 +299,15 @@ Keyboard shortcuts:
 | Enter | open |
 | `Alt+←` | browser back |
 | `Alt+Home` | launcher (homepage) |
-| `Backspace` / `Esc` | back from the Wi-Fi, forecast and radio pages |
+| `Backspace` / `Esc` | back from the Wi-Fi, forecast, radio, settings, Bluetooth and about pages |
 | Radio: Enter | play the focused station |
 | Radio: Space | play/pause |
 | Radio: `+` / `-` | volume |
+| Controller: D-pad / left stick | move focus |
+| Controller: A | open / activate |
+| Controller: B | back |
+| Controller: X / Start | Settings |
+| Controller: LB / RB | volume |
 
 A later `keyd` mapping can translate an air-mouse's Back/Home buttons if the
 remote does not send the browser shortcuts.
@@ -299,6 +339,9 @@ just tv-page            # port-forward 18085 for a laptop preview
 just tv-remote-status   # systemctl --user status travel-tv
 just tv-remote-logs     # journalctl --user-unit travel-tv.service -f
 just tv-remote-health   # curl http://127.0.0.1:18085/api/health
+just moonlight-status   # systemctl --user status moonlight
+just moonlight-logs     # journalctl --user-unit moonlight.service -f
+just bluetooth          # bluetoothctl on the Pi (pairing fallback)
 just vault-view         # show the decrypted Wi-Fi values
 ```
 

@@ -80,6 +80,56 @@
     append: true
   notify: Reload systemd and restart the Travel TV kiosk
 
+# --- Bluetooth controllers --------------------------------------------------
+# The travel-tv Go app pairs pads over the system bus with a Just Works agent
+# (org.bluez.Agent1). It reaches the bus through a socket bind-mount in its
+# quadlet, so the host only needs bluetoothd running, the radio unblocked and
+# permission for the stack user to call org.bluez.
+- name: Enable and start Bluetooth
+  ansible.builtin.systemd_service:
+    name: bluetooth.service
+    enabled: true
+    state: started
+
+- name: Unblock the Bluetooth radio
+  ansible.builtin.command: /usr/sbin/rfkill unblock bluetooth
+  changed_when: false
+
+- name: Check for the bluetooth group
+  ansible.builtin.command: getent group bluetooth
+  register: travel_lab_tv_host_bluetooth_group
+  changed_when: false
+  failed_when: false
+
+- name: Add the kiosk user to the bluetooth group
+  ansible.builtin.user:
+    name: "{{ travel_lab_user }}"
+    groups: bluetooth
+    append: true
+  when: travel_lab_tv_host_bluetooth_group.rc == 0
+  notify: Reload systemd and restart the Travel TV kiosk
+
+- name: Allow the kiosk user to use org.bluez on the system bus
+  ansible.builtin.copy:
+    dest: /etc/dbus-1/system.d/travel-tv-bluetooth.conf
+    mode: "0644"
+    owner: root
+    group: root
+    content: |
+      <?xml version="1.0"?>
+      <!DOCTYPE busconfig PUBLIC
+       "-//freedesktop//DTD D-BUS Bus Configuration 1.0//EN"
+       "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
+      <busconfig>
+        <!-- Issued by the Travel TV role: the travel-tv container pairs
+             controllers through bluetoothd with no logind session. -->
+        <policy user="{{ travel_lab_user }}">
+          <allow send_destination="org.bluez"/>
+          <allow receive_sender="org.bluez"/>
+        </policy>
+      </busconfig>
+  notify: Reload the D-Bus daemon
+
 - name: Install the Cage PAM stack
   ansible.builtin.copy:
     src: pam.d-cage

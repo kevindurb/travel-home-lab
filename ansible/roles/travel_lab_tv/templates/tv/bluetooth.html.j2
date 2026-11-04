@@ -1,0 +1,44 @@
+{% import "tv/icons.j2" as icons -%}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Travel Lab &mdash; Bluetooth</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="bluetooth">
+  <header class="top">
+    <a class="back" href="settings.html" data-back>&larr; Settings</a>
+    <div class="when">
+      <div class="clock" id="clock">--:--</div>
+      <div class="date" id="date"></div>
+    </div>
+  </header>
+
+  <main class="bt">
+    <div class="bt-head">
+      <div class="bt-copy">
+        <div class="bt-title">Controllers</div>
+        <div class="bt-state" id="bt-state">Checking Bluetooth&hellip;</div>
+      </div>
+      <button class="bt-scan" id="bt-scan" type="button">Scan</button>
+    </div>
+
+    <div class="bt-list" id="bt-list">
+      <div class="bt-empty">No controllers yet. Put the pad in pairing mode and press Scan.</div>
+    </div>
+
+    <div class="note" id="bt-note" hidden></div>
+  </main>
+
+  <footer class="hints">
+    <span><b>Enter</b> pair / connect</span>
+    <span><b>Esc</b> back</span>
+    <span><b>Start</b> settings</span>
+  </footer>
+
+  <script src="app.js"></script>
+  <script src="bluetooth.js"></script>
+</body>
+</html>

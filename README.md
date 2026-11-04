@@ -1,10 +1,11 @@
 # travel-home-lab
 
 Rootless Podman Quadlets for the travel lab stack (kiwix, jellyfin, gatus,
-glances, dozzle, homer, travel-tv, whoami) on `travel-lab` (Raspberry Pi 4,
-aarch64), deployed with **Ansible**. The Pi's HDMI output can also run a 10ft
-**Travel TV** kiosk (Cage + Firefox); see
-[docs/hdmi-tv.md](docs/hdmi-tv.md).
+glances, dozzle, homer, travel-tv, moonlight, whoami) on `travel-lab` (Raspberry
+Pi 4, aarch64), deployed with **Ansible**. The Pi's HDMI output can also run a
+10ft **Travel TV** kiosk (Cage + Firefox); see
+[docs/hdmi-tv.md](docs/hdmi-tv.md). Game streaming from a Sunshine host through
+the kiosk is in [docs/moonlight.md](docs/moonlight.md).
 
 Ingress is **Tailscale Services**, not a reverse proxy: each container
 publishes on `127.0.0.1` only, and tailscaled terminates TLS on `tailscale0:443`
@@ -13,6 +14,10 @@ Services are declared with `tailscale serve --service … --https=443` (the CLI
 form — the huJSON config file cannot request an HTTPS listener). There is no
 Caddy, no internal CA, and nothing on `.lan`. See
 [docs/tailscale-serve-migration.md](docs/tailscale-serve-migration.md).
+
+Moonlight is the one exception: its UI stays on loopback (the kiosk loads it
+from `127.0.0.1`, a secure context) and its WebRTC UDP media range is also
+published on the tailnet address. See [docs/moonlight.md](docs/moonlight.md).
 
 The stack ran under `podman compose`, then under hand-written quadlets installed
 by a `Makefile`. Both are retired; see
@@ -78,9 +83,10 @@ Travel TV service, starts normally. Connect the NVMe and re-run `just deploy`
 ## What lands on the Pi
 
 ```
-~/.config/containers/systemd/           # 12 quadlet units: 1 network, 3 volumes, 8 containers
+~/.config/containers/systemd/           # 13 quadlet units: 1 network, 3 volumes, 9 containers
 ~/.config/gatus/config.yml
 ~/.config/homer/config.yml
+~/.config/moonlight/                    # moonlight-web-stream data.json (users, pairings)
 ~/.config/systemd/user/pi-health.*      # temperature / under-voltage collector timer
 ~/.local/bin/pi-health                  # collector pushed to Gatus
 ~/.config/travel-tv/www/                # rendered page, QR codes and remote
@@ -98,8 +104,16 @@ The units use the systemd `%h` specifier, so nothing is tied to the username.
 `just site` installs a Cage + Firefox kiosk on the Pi's HDMI output. It waits
 for a connected display and the `https://travel-tv.<tailnet>` page, then shows
 the 10ft launcher (Jellyfin, YouTube, Netflix, Disney+, Spotify, Kiwix, a
-Wi-Fi QR, weather/forecast, Radio, PBS Kids and a phone-remote QR). No desktop
-environment is used.
+Wi-Fi QR, weather/forecast, Radio, PBS Kids, a phone-remote QR and Games). No
+desktop environment is used.
+
+A cog in the header opens Settings: a **Bluetooth** page for pairing and
+connecting controllers, and an **About** page. A paired controller drives every
+first-party page (D-pad/stick, A, B, Start, LB/RB) and the Moonlight stream owns
+it while a game is open. The **Games** tile streams from a Sunshine host (the
+gaming PC or the Steam Deck) through `moonlight-web-stream`; setup, H.264/1080p
+settings and the loopback/WebRTC network details are in
+[docs/moonlight.md](docs/moonlight.md).
 
 A phone remote at `https://travel-tv.<tailnet>/remote.html` controls the kiosk
 with tabs for Controls, Shortcuts, Type and Trackpad: D-pad, trackpad, app
@@ -110,10 +124,11 @@ The launcher and remote are served by the `travel-tv` Go container; there is no
 nginx or Python user service. The image bundles `wtype`/`wlrctl` and controls
 volume through `pipewire-pulse`.
 
-Prerequisites: create `svc:travel-tv` in the Tailscale admin console and set
-the Wi-Fi vault values with `just vault-edit`. Full details, one-time
+Prerequisites: create `svc:travel-tv` in the Tailscale admin console and set the
+Wi-Fi vault values with `just vault-edit`. Full details, one-time
 Jellyfin/Netflix setup, audio notes and troubleshooting are in
-[docs/hdmi-tv.md](docs/hdmi-tv.md).
+[docs/hdmi-tv.md](docs/hdmi-tv.md); game streaming is in
+[docs/moonlight.md](docs/moonlight.md).
 
 ## Operate
 
@@ -129,6 +144,9 @@ just tv-logs
 just tv-remote-status
 just tv-remote-logs
 just tv-remote-health
+just moonlight-status
+just moonlight-logs
+just bluetooth
 just pi-health
 just pi-health-logs
 just tv-test

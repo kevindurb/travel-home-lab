@@ -516,13 +516,193 @@
   }
 
   // --- page wiring --------------------------------------------------------
-  if (page === 'wifi' || page === 'forecast' || page === 'remoteqr') {
-    const back = document.querySelector('[data-back]');
-    if (back) requestAnimationFrame(() => back.focus());
+  function backHref() {
+    if (page === 'bluetooth' || page === 'about') return 'settings.html';
+    return 'index.html';
+  }
+
+  function goBack() {
+    if (page === 'home') return;
+    window.location.href = backHref();
+  }
+
+  function goSettings() {
+    if (page !== 'settings') window.location.href = 'settings.html';
+  }
+
+  async function loadBluetoothSummary() {
+    const el = document.getElementById('bt-summary');
+    if (!el) return;
+    try {
+      const response = await fetch('/api/bluetooth', { cache: 'no-store' });
+      const data = await response.json();
+      if (!data.available) {
+        el.textContent = 'Unavailable';
+        return;
+      }
+      const devices = data.devices || [];
+      const paired = devices.filter((device) => device.paired).length;
+      const connected = devices.filter((device) => device.connected).length;
+      el.textContent = devices.length
+        ? `${paired} paired · ${connected} connected`
+        : 'No controllers yet';
+    } catch (_) {
+      el.textContent = 'Unavailable';
+    }
+  }
+
+  async function loadVersion() {
+    const el = document.getElementById('about-version');
+    if (!el) return;
+    try {
+      const response = await fetch('/api/health', { cache: 'no-store' });
+      const data = await response.json();
+      el.textContent = data.version || 'dev';
+    } catch (_) {
+      el.textContent = 'unknown';
+    }
+  }
+
+  // --- gamepad ------------------------------------------------------------
+  // A paired controller drives the same focus ring the arrow keys use. The
+  // Moonlight client is a different origin, so it owns the pad while it is
+  // open; none of this runs there. Gamepad API needs a secure context, which
+  // Tailscale's HTTPS provides.
+  function focusables() {
+    return Array.from(document.querySelectorAll(
+      'a[href], button:not([disabled]), input, select, textarea, [data-cog]'
+    )).filter((el) => el.getClientRects().length > 0);
+  }
+
+  async function nudgeVolume(delta) {
+    try {
+      const response = await fetch('/api/health', { cache: 'no-store' });
+      const data = await response.json();
+      const base = typeof data.volume === 'number' ? data.volume : 0.5;
+      const value = Math.min(1, Math.max(0, Math.round((base + delta) * 100) / 100));
+      await fetch('/api/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'volume', value })
+      });
+    } catch (_) {
+      // The TV may be busy or offline; a missed volume step is harmless.
+    }
+  }
+
+  function wireGamepad() {
+    if (!navigator.getGamepads) return;
+
+    const DEADZONE = 0.55;
+    const FIRST_REPEAT = 420;
+    const REPEAT = 140;
+    const previous = new Map();
+    let direction = null;
+    let nextRepeat = 0;
+
+    function pressed(pad, index) {
+      const button = pad.buttons[index];
+      return Boolean(button && (button.pressed || button.value > 0.5));
+    }
+
+    function rising(pad, index) {
+      const down = pressed(pad, index);
+      const was = previous.get(index) || false;
+      previous.set(index, down);
+      return down && !was;
+    }
+
+    function readDirection(pad) {
+      if (pressed(pad, 12)) return 'ArrowUp';
+      if (pressed(pad, 13)) return 'ArrowDown';
+      if (pressed(pad, 14)) return 'ArrowLeft';
+      if (pressed(pad, 15)) return 'ArrowRight';
+      const x = pad.axes[0] || 0;
+      const y = pad.axes[1] || 0;
+      if (Math.abs(x) > Math.abs(y)) {
+        if (x < -DEADZONE) return 'ArrowLeft';
+        if (x > DEADZONE) return 'ArrowRight';
+      } else {
+        if (y < -DEADZONE) return 'ArrowUp';
+        if (y > DEADZONE) return 'ArrowDown';
+      }
+      return null;
+    }
+
+    function move(key) {
+      const items = focusables();
+      if (!items.length) return;
+      const current = items.includes(document.activeElement)
+        ? document.activeElement
+        : items[0];
+      const next = nearestInDirection(items, current, key);
+      if (next) {
+        next.focus();
+        next.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      }
+    }
+
+    function activate() {
+      const active = document.activeElement;
+      if (active && active !== document.body && typeof active.click === 'function') {
+        active.click();
+      }
+    }
+
+    function frame() {
+      const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+      const pad = Array.from(pads).find((candidate) => candidate && candidate.connected);
+      if (pad) {
+        const now = performance.now();
+        const dir = readDirection(pad);
+        if (dir !== direction) {
+          direction = dir;
+          nextRepeat = now + FIRST_REPEAT;
+          if (dir) move(dir);
+        } else if (dir && now >= nextRepeat) {
+          nextRepeat = now + REPEAT;
+          move(dir);
+        }
+        if (rising(pad, 0)) activate();
+        if (rising(pad, 1)) goBack();
+        const startPressed = rising(pad, 9);
+        const xPressed = rising(pad, 2);
+        if (startPressed || xPressed) goSettings();
+        if (rising(pad, 4)) nudgeVolume(-0.05);
+        if (rising(pad, 5)) nudgeVolume(0.05);
+      } else if (direction !== null || previous.size) {
+        direction = null;
+        previous.clear();
+      }
+      requestAnimationFrame(frame);
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  wireGamepad();
+
+  if (page === 'wifi' || page === 'forecast' || page === 'remoteqr' ||
+      page === 'settings' || page === 'bluetooth' || page === 'about') {
+    if (page === 'settings') {
+      const rows = Array.from(document.querySelectorAll('[data-row]'));
+      if (rows.length) requestAnimationFrame(() => rows[0].focus());
+      loadBluetoothSummary();
+    } else if (page === 'bluetooth') {
+      const scan = document.getElementById('bt-scan');
+      if (scan) requestAnimationFrame(() => scan.focus());
+    } else if (page === 'about') {
+      const back = document.querySelector('[data-back]');
+      if (back) requestAnimationFrame(() => back.focus());
+      loadVersion();
+    } else {
+      const back = document.querySelector('[data-back]');
+      if (back) requestAnimationFrame(() => back.focus());
+    }
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Backspace' || event.key === 'Escape') {
         event.preventDefault();
-        window.location.href = 'index.html';
+        goBack();
       }
     });
     if (page === 'forecast') {
@@ -543,6 +723,10 @@
 
   const tiles = Array.from(document.querySelectorAll('[data-tile]'));
   if (!tiles.length) return;
+  // The settings cog lives in the header: append it so the arrow keys can
+  // reach it without shifting the grid indices the phone remote launches by.
+  const cog = document.querySelector('[data-cog]');
+  if (cog) tiles.push(cog);
   let index = 0;
 
   function focusTile(next, scroll = true) {

@@ -57,6 +57,11 @@ endpoints:
     group: services
     conditions: ['[STATUS] == 200']
 
+  - name: moonlight
+    url: http://moonlight:8080
+    group: services
+    conditions: ['[STATUS] == 200']
+
   # Tailscale Services, reached through tailscaled (validates TLS + ingress).
   # The container resolves MagicDNS via the host's Tailscale resolver.
   - name: tailnet-kiwix

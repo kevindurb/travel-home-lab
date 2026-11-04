@@ -1,0 +1,46 @@
+{% import "tv/icons.j2" as icons -%}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Travel Lab &mdash; Settings</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="settings">
+  <header class="top">
+    <a class="back" href="index.html" data-back>&larr; Back</a>
+    <div class="when">
+      <div class="clock" id="clock">--:--</div>
+      <div class="date" id="date"></div>
+    </div>
+  </header>
+
+  <main class="menu">
+    <a class="menu-row" href="bluetooth.html" data-row style="--accent: #6aa9ff;">
+      <span class="menu-icon">{{ icons.icon('bluetooth') }}</span>
+      <span class="menu-copy">
+        <span class="menu-label">Bluetooth</span>
+        <span class="menu-meta" id="bt-summary">Controllers</span>
+      </span>
+      <span class="menu-chevron">{{ icons.icon('chevron') }}</span>
+    </a>
+    <a class="menu-row" href="about.html" data-row style="--accent: #7b5cff;">
+      <span class="menu-icon">{{ icons.icon('info') }}</span>
+      <span class="menu-copy">
+        <span class="menu-label">About</span>
+        <span class="menu-meta">Version, board and services</span>
+      </span>
+      <span class="menu-chevron">{{ icons.icon('chevron') }}</span>
+    </a>
+  </main>
+
+  <footer class="hints">
+    <span><b>Enter</b> open</span>
+    <span><b>Esc</b> back</span>
+    <span><b>Start</b> settings</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

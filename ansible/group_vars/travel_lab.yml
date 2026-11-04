@@ -71,6 +71,24 @@ travel_lab_tv_firefox_bin: firefox
 # qrencode runs on the controller so the PSK never reaches the Pi in plaintext.
 travel_lab_tv_qrencode_bin: qrencode
 
+# --- Moonlight (game streaming) --------------------------------------------
+# moonlight-web-stream (Rust) runs on the Pi and relays a Sunshine host to the
+# kiosk's Firefox over WebRTC. The kiosk loads it from the loopback publish:
+# 127.0.0.1 counts as a secure context, so the Gamepad, pointer-lock and
+# WebSocket APIs all work, and the request never goes through `tailscale serve`
+# (whose HTTP proxy has open WebSocket bugs: tailscale#20882, #18827). The
+# WebRTC media is UDP, so those ports are published on the tailnet address as
+# well and advertised as the ICE candidate. See docs/moonlight.md.
+travel_lab_moonlight_port: 18086
+travel_lab_moonlight_url: "http://127.0.0.1:{{ travel_lab_moonlight_port }}"
+travel_lab_moonlight_config: "{{ travel_lab_config_root }}/moonlight"
+# Port the bridge listens on inside the container.
+travel_lab_moonlight_listen_port: 8080
+# UDP range for WebRTC media, one port per stream slot. It must match
+# WEBRTC_PORT_RANGE in the quadlet and the published range.
+travel_lab_moonlight_webrtc_port_min: 40000
+travel_lab_moonlight_webrtc_port_max: 40100
+
 # Weather tile / forecast page. Leave lat/lon/city empty to resolve the
 # location from the travel router's public IP; set them to pin a location.
 travel_lab_weather_units: fahrenheit
@@ -147,6 +165,11 @@ travel_lab_tv_tiles:
     accent: "#5CC8FF"
     action: remote
     url: "remote-qr.html"
+  - id: games
+    label: Games
+    icon: gamepad
+    accent: "#7B5CFF"
+    url: "{{ travel_lab_moonlight_url }}"
 
 # Radio page stations. Use HTTPS URLs where possible; CPR News is proxied by
 # the travel-tv Go app because its stream is HTTP-only.
@@ -196,14 +219,14 @@ travel_lab_radio_stations:
 # define svc:<service> in the Tailscale admin console (see
 # docs/tailscale-serve-migration.md).
 travel_lab_tailscale_services:
-  kiwix:    { service: travel-kiwix,    local_port: 18080 }
-  jellyfin: { service: travel-jellyfin, local_port: 18096 }
-  gatus:    { service: travel-gatus,    local_port: 18081 }
-  glances:  { service: travel-glances,  local_port: 18108 }
-  dozzle:   { service: travel-dozzle,   local_port: 18082 }
-  homer:    { service: travel-home,     local_port: 18083 }
-  whoami:   { service: travel-whoami,   local_port: 18084 }
-  tv:       { service: travel-tv,       local_port: 18085 }
+  kiwix:     { service: travel-kiwix,     local_port: 18080 }
+  jellyfin:  { service: travel-jellyfin,  local_port: 18096 }
+  gatus:     { service: travel-gatus,     local_port: 18081 }
+  glances:   { service: travel-glances,   local_port: 18108 }
+  dozzle:    { service: travel-dozzle,    local_port: 18082 }
+  homer:     { service: travel-home,      local_port: 18083 }
+  whoami:    { service: travel-whoami,    local_port: 18084 }
+  tv:        { service: travel-tv,        local_port: 18085 }
 
 # --- images -----------------------------------------------------------------
 # Pinned to :latest to match the stack's long-standing behaviour. To pin, just
@@ -216,6 +239,7 @@ travel_lab_images:
   homer: docker.io/b4bz/homer:latest
   jellyfin: docker.io/jellyfin/jellyfin:latest
   kiwix: ghcr.io/kiwix/kiwix-serve:latest
+  moonlight: docker.io/mrcreativ3001/moonlight-web-stream:latest
   tv: ghcr.io/kevindurb/travel-home-lab/travel-tv:latest
   whoami: docker.io/traefik/whoami:latest
 
@@ -229,6 +253,7 @@ travel_lab_containers:
   - dozzle
   - glances
   - homer
+  - moonlight
   - travel-tv
   - whoami
 
@@ -246,6 +271,7 @@ travel_lab_units:
   - homer.container
   - jellyfin.container
   - kiwix.container
+  - moonlight.container
   - travel-tv.container
   - whoami.container
 

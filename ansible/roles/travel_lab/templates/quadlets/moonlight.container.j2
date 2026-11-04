@@ -1,0 +1,43 @@
+[Unit]
+Description=Moonlight game streaming web gateway (moonlight-web-stream)
+
+[Container]
+Image={{ travel_lab_images.moonlight }}
+ContainerName=moonlight
+Network={{ travel_lab_network }}.network
+# The image runs as an unprivileged user, but the bind-mounted data directory
+# is owned by the stack user. Run as root inside the rootless container so the
+# mapped host uid can write data.json; the kiosk's other quadlets do the same.
+User=0
+# Loopback only. The kiosk loads the UI from http://127.0.0.1:<port>, which is
+# a secure context, so it does not need `tailscale serve` (whose HTTP proxy has
+# open WebSocket bugs) or a certificate.
+PublishPort=127.0.0.1:{{ travel_lab_moonlight_port }}:{{ travel_lab_moonlight_listen_port }}
+# WebRTC media is UDP. Publish it on loopback (for the kiosk) and on the tailnet
+# address (for a tailnet laptop, if the UI is ever exposed to them). The server
+# advertises the tailnet address as its ICE candidate; it also advertises a
+# loopback candidate by default. Keep the range in step with WEBRTC_PORT_RANGE.
+PublishPort=127.0.0.1:{{ travel_lab_moonlight_webrtc_port_min }}-{{ travel_lab_moonlight_webrtc_port_max }}:{{ travel_lab_moonlight_webrtc_port_min }}-{{ travel_lab_moonlight_webrtc_port_max }}/udp
+PublishPort={{ travel_lab_tailnet_ip }}:{{ travel_lab_moonlight_webrtc_port_min }}-{{ travel_lab_moonlight_webrtc_port_max }}:{{ travel_lab_moonlight_webrtc_port_min }}-{{ travel_lab_moonlight_webrtc_port_max }}/udp
+# users, host pairings and settings (data.json), plus the optional
+# server/config.json. This is the only stateful directory; back it up.
+Volume={{ travel_lab_moonlight_config }}:/moonlight-web/server:rw,z
+Environment=BIND_ADDRESS=0.0.0.0:{{ travel_lab_moonlight_listen_port }}
+Environment=WEBRTC_PORT_RANGE={{ travel_lab_moonlight_webrtc_port_min }}:{{ travel_lab_moonlight_webrtc_port_max }}
+Environment=WEBRTC_NAT_1TO1_HOST={{ travel_lab_tailnet_ip }}
+Environment=HOME=/tmp
+Environment=LANG=C.UTF-8
+Tmpfs=/tmp:rw,size=16m,mode=1777
+ReadOnly=true
+DropCapability=ALL
+NoNewPrivileges=true
+AutoUpdate={{ travel_lab_auto_update_value }}
+
+[Service]
+Restart=always
+# The media ports bind to the tailnet address; at boot tailscaled may not have
+# assigned it yet, so retry rather than crash-loop.
+RestartSec=5
+
+[Install]
+WantedBy=default.target
