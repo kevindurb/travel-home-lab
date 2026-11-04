@@ -28,13 +28,17 @@
     state: directory
     mode: "0755"
 
-# The travel-tv container bind-mounts this path, so it must exist (and be
-# user-owned) before Podman starts the container.
-- name: Create the Travel TV web root
+# The travel-tv container bind-mounts these paths, so they must exist (and be
+# user-owned) before Podman starts the container. The run dir holds the phone
+# remote's Unix socket.
+- name: Create the Travel TV web root and remote socket directory
   ansible.builtin.file:
-    path: "{{ travel_lab_tv_www }}"
+    path: "{{ item }}"
     state: directory
     mode: "0755"
+  loop:
+    - "{{ travel_lab_tv_www }}"
+    - "{{ travel_lab_tv_run }}"
 
 # --- render -----------------------------------------------------------------
 - name: Render the service config files

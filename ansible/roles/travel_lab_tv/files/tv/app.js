@@ -516,7 +516,7 @@
   }
 
   // --- page wiring --------------------------------------------------------
-  if (page === 'wifi' || page === 'forecast') {
+  if (page === 'wifi' || page === 'forecast' || page === 'remoteqr') {
     const back = document.querySelector('[data-back]');
     if (back) requestAnimationFrame(() => back.focus());
     document.addEventListener('keydown', (event) => {

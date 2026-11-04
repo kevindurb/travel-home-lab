@@ -51,6 +51,20 @@ travel_lab_network: travel-home-lab
 travel_lab_tv_url: "https://{{ travel_lab_tailscale_services.tv.service }}.{{ travel_lab_tailnet_domain }}"
 travel_lab_tv_www: "{{ travel_lab_config_root }}/travel-tv/www"
 travel_lab_tv_profile: "{{ travel_lab_home }}/.local/share/travel-tv/firefox"
+# Phone remote: a user service injects Wayland input into Cage, and nginx
+# proxies /api/ to its Unix socket. The socket lives in this directory, which
+# is bind-mounted into the travel-tv container.
+travel_lab_tv_run: "{{ travel_lab_config_root }}/travel-tv/run"
+travel_lab_tv_remote_url: "{{ travel_lab_tv_url }}/remote.html"
+# Short URL encoded in the launcher QR; nginx rewrites it to remote.html.
+travel_lab_tv_remote_qr_url: "{{ travel_lab_tv_url }}/r"
+# The launcher grid uses a fixed number of columns; the remote needs it to
+# turn an app tile index into arrow-key presses.
+travel_lab_tv_grid_columns: 4
+# How long to wait after Alt+Home before sending the app-grid arrows. Raise it
+# if app launching misses on a slow TV page.
+travel_lab_tv_remote_settle_ms: 2000
+travel_lab_tv_remote_socket: "{{ travel_lab_tv_run }}/remote.sock"
 # Raspberry Pi OS ships `firefox`; switch both values to firefox-esr if the
 # image only has Debian's ESR package.
 travel_lab_tv_firefox_package: firefox
@@ -128,6 +142,12 @@ travel_lab_tv_tiles:
     icon: pbskids
     accent: "#2638C4"
     url: "https://pbskids.org/videos/"
+  - id: remote
+    label: Remote
+    icon: phone
+    accent: "#5CC8FF"
+    action: remote
+    url: "remote-qr.html"
 
 # Radio page stations. Use HTTPS URLs where possible; CPR News is proxied by
 # the travel-tv nginx container because its stream is HTTP-only.

@@ -22,6 +22,22 @@ server {
         proxy_read_timeout 1h;
     }
 
+    # Phone remote API. It listens on a Unix socket in the user's config dir,
+    # bind-mounted at /run/travel-tv; no TCP port is exposed for it.
+    location /api/ {
+        proxy_pass http://unix:/run/travel-tv/remote.sock:/;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_read_timeout 20s;
+        client_max_body_size 8k;
+    }
+
+    # Short URL encoded in the launcher QR. The URI stays /r in the browser,
+    # so relative assets still resolve to /remote.css and /remote.js.
+    location = /r {
+        rewrite ^ /remote.html last;
+    }
+
     location / {
         try_files $uri $uri/ =404;
     }

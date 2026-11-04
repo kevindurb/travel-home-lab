@@ -63,7 +63,7 @@ body {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(var(--cols, 4), 1fr);
   grid-auto-rows: 1fr;
   gap: 2vh 2.4vw;
   padding: 2vh calc(var(--pad) * 1.5);
@@ -373,6 +373,14 @@ body {
 .note code {
   font-family: "DejaVu Sans Mono", monospace;
   color: var(--text);
+}
+
+.qr-url {
+  max-width: 80vw;
+  font-size: 2.2vh;
+  color: var(--muted);
+  text-align: center;
+  word-break: break-all;
 }
 
 /* ---- radio page -------------------------------------------------------- */

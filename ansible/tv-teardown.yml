@@ -36,3 +36,30 @@
         msg:
           - "Kiosk removed; packages, Firefox profile and page files remain."
           - "The travel-tv container is removed by `just teardown`."
+
+- name: Remove the Travel TV phone remote
+  hosts: travel_lab
+  become: false
+  tasks:
+    - name: Stop and disable the remote API
+      ansible.builtin.systemd_service:
+        name: travel-tv-remote.service
+        state: stopped
+        enabled: false
+        scope: user
+      failed_when: false
+      environment: "{{ travel_lab_user_env }}"
+
+    - name: Remove the remote unit and API script
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ travel_lab_home }}/.config/systemd/user/travel-tv-remote.service"
+        - "{{ travel_lab_home }}/.local/bin/travel-tv-remote"
+
+    - name: Reload the user systemd manager
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+        scope: user
+      environment: "{{ travel_lab_user_env }}"

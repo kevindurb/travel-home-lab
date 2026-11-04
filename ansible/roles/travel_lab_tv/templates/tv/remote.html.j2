@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1016">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Travel TV Remote</title>
+  <link rel="stylesheet" href="remote.css">
+</head>
+<body data-columns="{{ travel_lab_tv_grid_columns }}">
+  <div class="wrap">
+    <header class="head">
+      <div class="brand">TRAVEL LAB</div>
+      <div class="status" id="status" data-state="unknown">Connecting&hellip;</div>
+    </header>
+
+    <section class="panel">
+      <div class="panel-title">Trackpad</div>
+      <div class="trackpad" id="trackpad" aria-label="Trackpad">
+        <span class="trackpad-hint">Drag to move &middot; Tap to click</span>
+      </div>
+      <div class="row">
+        <button type="button" class="btn" data-click="left">Click</button>
+        <button type="button" class="btn" data-click="right">Right click</button>
+        <button type="button" class="btn" data-scroll="-5">Scroll &uarr;</button>
+        <button type="button" class="btn" data-scroll="5">Scroll &darr;</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">Navigation</div>
+      <div class="pad">
+        <button type="button" class="key key--up" data-key="Up" aria-label="Up">&uarr;</button>
+        <button type="button" class="key key--left" data-key="Left" aria-label="Left">&larr;</button>
+        <button type="button" class="key key--ok" data-key="Return" aria-label="OK">OK</button>
+        <button type="button" class="key key--right" data-key="Right" aria-label="Right">&rarr;</button>
+        <button type="button" class="key key--down" data-key="Down" aria-label="Down">&darr;</button>
+      </div>
+      <div class="row">
+        <button type="button" class="btn" data-combo="alt:Left">&larr; Back</button>
+        <button type="button" class="btn" data-combo="alt:Home">Home</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">Apps</div>
+      <div class="apps">
+        {% for tile in travel_lab_tv_tiles %}
+        {% if (tile.action | default('')) != 'remote' %}
+        <button type="button" class="app"
+                data-launch="{{ loop.index0 }}"
+                data-label="{{ tile.label }}"
+                style="--accent: {{ tile.accent }};">{{ tile.label }}</button>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">Media</div>
+      <div class="row">
+        <button type="button" class="btn" data-key="space">Play / Pause</button>
+        <button type="button" class="btn" data-mute-toggle>Mute</button>
+      </div>
+      <label class="volume">
+        <span>TV volume</span>
+        <input type="range" id="volume" min="0" max="100" step="1" value="40">
+        <output id="volume-out">40%</output>
+      </label>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">Keyboard</div>
+      <form class="type" id="type-form" autocomplete="off">
+        <input type="text" id="type-input" placeholder="Type into the TV&hellip;"
+               autocapitalize="off" autocomplete="off" spellcheck="false">
+        <button type="submit" class="btn btn--primary">Type</button>
+      </form>
+      <div class="row">
+        <button type="button" class="btn" data-key="Return">Enter</button>
+        <button type="button" class="btn" data-key="BackSpace">Backspace</button>
+        <button type="button" class="btn" data-key="space">Space</button>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <span>Travel TV remote</span>
+      <span>Tailnet only</span>
+    </footer>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="remote.js"></script>
+</body>
+</html>

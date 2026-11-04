@@ -70,6 +70,17 @@ tv-status:
 tv-logs:
   ssh -t travel-lab.beaver-cloud.ts.net 'journalctl -u tv-kiosk -f'
 
+# Phone remote API (a user unit, proxied by the travel-tv container).
+tv-remote-status:
+  ssh travel-lab.beaver-cloud.ts.net 'systemctl --user --no-pager status travel-tv-remote'
+
+tv-remote-logs:
+  ssh -t travel-lab.beaver-cloud.ts.net 'journalctl --user-unit travel-tv-remote.service -f'
+
+# One-shot health check over the Unix socket (no tailnet round-trip).
+tv-remote-health:
+  ssh travel-lab.beaver-cloud.ts.net 'curl -fsS --unix-socket ~/.config/travel-tv/run/remote.sock http://localhost/health'
+
 # Restart Firefox/Cage after a page or profile change. Prompts for sudo.
 tv-restart:
   ssh -t travel-lab.beaver-cloud.ts.net 'sudo systemctl restart tv-kiosk'

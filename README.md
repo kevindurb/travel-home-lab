@@ -75,7 +75,9 @@ Travel TV service, starts normally. Connect the NVMe and re-run `just deploy`
 ~/.config/containers/systemd/           # 12 quadlet units: 1 network, 3 volumes, 8 containers
 ~/.config/gatus/config.yml
 ~/.config/homer/config.yml
-~/.config/travel-tv/                    # launcher page + nginx config
+~/.config/travel-tv/                    # page, nginx config and remote socket dir
+~/.config/systemd/user/travel-tv-remote.service
+~/.local/bin/travel-tv-remote           # phone-remote API
 ~/.local/share/travel-tv/firefox/       # persistent kiosk profile
 /etc/systemd/system/tv-kiosk.service    # HDMI kiosk (system unit)
 ```
@@ -90,8 +92,12 @@ The units use the systemd `%h` specifier, so nothing is tied to the username.
 `just site` installs a Cage + Firefox kiosk on the Pi's HDMI output. It waits
 for a connected display and the `https://travel-tv.<tailnet>` page, then shows
 the 10ft launcher (Jellyfin, YouTube, Netflix, Disney+, Spotify, Kiwix, a
-Wi-Fi QR, weather/forecast, Radio and PBS Kids). No desktop environment is
-used.
+Wi-Fi QR, weather/forecast, Radio, PBS Kids and a phone-remote QR). No desktop
+environment is used.
+
+A phone remote at `https://travel-tv.<tailnet>/remote.html` controls the kiosk:
+D-pad, trackpad, app launch, volume, and text entry. Scan the Remote tile's QR
+(or open the short `https://travel-tv.<tailnet>/r`) to get there.
 
 Prerequisites: create `svc:travel-tv` in the Tailscale admin console and set
 the Wi-Fi vault values with `just vault-edit`. Full details, one-time
@@ -109,6 +115,9 @@ just serves
 just ssh 'podman ps'
 just tv-status
 just tv-logs
+just tv-remote-status
+just tv-remote-logs
+just tv-remote-health
 just vault-view
 ```
 
@@ -119,6 +128,7 @@ systemctl --user status jellyfin
 journalctl --user -u kiwix -f
 tailscale serve status
 systemctl status tv-kiosk
+systemctl --user status travel-tv-remote
 ```
 
 Quadlets autostart at boot via `[Install] WantedBy=default.target` plus
@@ -168,13 +178,13 @@ caveat about `:latest` on the stateful services.
 
 ```bash
 just teardown       # stack: stop and remove the quadlet units
-just tv-teardown    # kiosk: stop/remove the system unit; leaves packages + profile
+just tv-teardown    # kiosk + phone remote: stop/remove the units; leaves packages + profile
 ```
 
 Stops the stack and removes the quadlet units this repo manages. Images, the
 five volumes, and the rendered config files are left alone. `tv-teardown`
 also leaves the Firefox profile and page files; see
-[docs/hdmi-tv.md](docs/hdmi-tv.md#10-teardown).
+[docs/hdmi-tv.md](docs/hdmi-tv.md#11-teardown).
 
 ## Rollback
 

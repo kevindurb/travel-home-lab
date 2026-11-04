@@ -9,6 +9,9 @@ Network={{ travel_lab_network }}.network
 PublishPort=127.0.0.1:{{ travel_lab_tailscale_services.tv.local_port }}:80
 Volume=%h/.config/travel-tv/www:/usr/share/nginx/html:ro,z
 Volume=%h/.config/travel-tv/nginx.conf:/etc/nginx/conf.d/default.conf:ro,z
+# The phone-remote API's Unix socket. The socket is mode 0666 so the
+# rootless container's nginx worker (a mapped subuid) can connect to it.
+Volume=%h/.config/travel-tv/run:/run/travel-tv:z
 AutoUpdate={{ travel_lab_auto_update_value }}
 
 [Service]

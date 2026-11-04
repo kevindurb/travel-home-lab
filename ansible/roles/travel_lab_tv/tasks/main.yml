@@ -1,13 +1,18 @@
 ---
-# Render the Travel TV launcher, its Wi-Fi QR and the Firefox kiosk profile.
-# Runs as the stack user (no become); the kiosk itself is installed by the
-# travel_lab_tv_host role in the host play.
+# Render the Travel TV launcher, its QR codes, the phone-remote API and the
+# Firefox kiosk profile. Runs as the stack user (no become); the kiosk itself
+# is installed by the travel_lab_tv_host role in the host play.
 
-- name: Create the Travel TV web root
+- name: Create the Travel TV page, socket and user-service directories
   ansible.builtin.file:
-    path: "{{ travel_lab_tv_www }}"
+    path: "{{ item }}"
     state: directory
     mode: "0755"
+  loop:
+    - "{{ travel_lab_tv_www }}"
+    - "{{ travel_lab_tv_run }}"
+    - "{{ travel_lab_home }}/.local/bin"
+    - "{{ travel_lab_home }}/.config/systemd/user"
 
 - name: Create the Firefox kiosk profile directories
   ansible.builtin.file:
@@ -32,9 +37,40 @@
     dest: "{{ travel_lab_tv_profile }}/chrome/userChrome.css"
     mode: "0644"
 
-# --- Wi-Fi QR ---------------------------------------------------------------
-# qrencode runs on the controller. The PSK is never passed to the Pi in
-# plaintext; only the rendered SVG is copied across.
+# --- phone remote API -------------------------------------------------------
+# A user service; nginx proxies /api/ to its Unix socket. It needs the kiosk's
+# Wayland socket, so it runs as the stack user rather than in a container.
+- name: Install the Travel TV phone-remote API
+  ansible.builtin.copy:
+    src: remote/travel-tv-remote.py
+    dest: "{{ travel_lab_home }}/.local/bin/travel-tv-remote"
+    mode: "0755"
+  notify: Restart the Travel TV remote API
+
+- name: Install the Travel TV phone-remote user unit
+  ansible.builtin.template:
+    src: travel-tv-remote.service.j2
+    dest: "{{ travel_lab_home }}/.config/systemd/user/travel-tv-remote.service"
+    mode: "0644"
+  notify:
+    - Reload the user systemd manager
+    - Restart the Travel TV remote API
+
+- name: Apply remote unit changes before starting it
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start the Travel TV phone-remote API
+  ansible.builtin.systemd_service:
+    name: travel-tv-remote.service
+    enabled: true
+    state: started
+    scope: user
+  environment: "{{ travel_lab_user_env }}"
+  when: not ansible_check_mode
+
+# --- QR codes ---------------------------------------------------------------
+# qrencode runs on the controller. The Wi-Fi PSK is never passed to the Pi in
+# plaintext; only the rendered SVGs are copied across.
 - name: Check for qrencode on the controller
   ansible.builtin.command: "{{ travel_lab_tv_qrencode_bin }} --version"
   delegate_to: localhost
@@ -43,16 +79,60 @@
   failed_when: false
   register: travel_lab_tv_qrencode
 
-- name: Require qrencode to render the Wi-Fi QR
+- name: Require qrencode to render the QR codes
   ansible.builtin.assert:
     that:
       - travel_lab_tv_qrencode.rc == 0
     fail_msg: >-
-      qrencode is required on the workstation to render the Wi-Fi QR.
-      Install it (brew install qrencode) or set travel_lab_tv_qrencode_bin.
-  when: travel_lab_tv_wifi_ready | bool
+      qrencode is required on the workstation to render the Travel TV QR
+      codes. Install it (brew install qrencode) or set
+      travel_lab_tv_qrencode_bin.
 
-- name: Create a temporary QR file on the controller
+# The remote QR has no secrets, so it is rendered every deploy.
+- name: Create a temporary remote QR file on the controller
+  ansible.builtin.tempfile:
+    state: file
+    suffix: .svg
+  delegate_to: localhost
+  register: travel_lab_tv_remote_qr_tmp
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Render the phone remote QR
+  ansible.builtin.command:
+    argv:
+      - "{{ travel_lab_tv_qrencode_bin }}"
+      - -t
+      - SVG
+      - -l
+      - M
+      - -m
+      - "4"
+      - -s
+      - "10"
+      - -o
+      - "{{ travel_lab_tv_remote_qr_tmp.path | default('') }}"
+      - "{{ travel_lab_tv_remote_qr_url }}"
+  delegate_to: localhost
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Install the phone remote QR
+  ansible.builtin.copy:
+    src: "{{ travel_lab_tv_remote_qr_tmp.path | default('') }}"
+    dest: "{{ travel_lab_tv_www }}/remote-qr.svg"
+    mode: "0644"
+  when: not ansible_check_mode
+
+- name: Remove the temporary remote QR
+  ansible.builtin.file:
+    path: "{{ travel_lab_tv_remote_qr_tmp.path | default('') }}"
+    state: absent
+  delegate_to: localhost
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Create a temporary Wi-Fi QR file on the controller
   ansible.builtin.tempfile:
     state: file
     suffix: .svg
@@ -98,7 +178,7 @@
     - travel_lab_tv_wifi_ready | bool
     - not ansible_check_mode
 
-- name: Remove the temporary QR
+- name: Remove the temporary Wi-Fi QR
   ansible.builtin.file:
     path: "{{ travel_lab_tv_qr_tmp.path | default('') }}"
     state: absent
@@ -141,6 +221,8 @@
   loop:
     - style.css
     - app.js
+    - remote.css
+    - remote.js
 
 - name: Render the Travel TV pages
   ansible.builtin.template:
@@ -151,4 +233,6 @@
     - forecast.html
     - wifi.html
     - radio.html
+    - remote-qr.html
+    - remote.html
     - index.html

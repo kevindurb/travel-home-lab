@@ -11,6 +11,22 @@
     update_cache: true
     cache_valid_time: 3600
 
+# Cage gained virtual keyboard/pointer support in 2023; the phone remote needs
+# it. Warn rather than fail so the TV keeps working with an older image.
+- name: Check whether Cage supports virtual input
+  ansible.builtin.command: grep -aq wlr_virtual_keyboard_manager_v1_create /usr/bin/cage
+  register: travel_lab_tv_host_virtual_input
+  changed_when: false
+  failed_when: false
+
+- name: Warn when the phone remote cannot inject input
+  ansible.builtin.debug:
+    msg: >-
+      This Cage build does not advertise the virtual keyboard protocol. The
+      phone remote page will load, but its buttons will not reach the kiosk.
+      Upgrade Cage to 0.2.0 or newer.
+  when: travel_lab_tv_host_virtual_input.rc != 0
+
 - name: Install Widevine for Netflix and Disney+
   ansible.builtin.apt:
     name: libwidevinecdm0
