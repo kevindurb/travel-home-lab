@@ -17,7 +17,7 @@ RUN mkdir -p /out/tmp && touch /out/tmp/.keep && \
 
 # wtype and wlrctl are the proven Wayland input helpers. The final image is
 # FROM scratch, so copy them and their small musl/Wayland/XKB runtime.
-FROM --platform=$TARGETPLATFORM alpine:3.22 AS helpers
+FROM alpine:3.22 AS helpers
 RUN apk add --no-cache wtype wlrctl
 
 FROM scratch

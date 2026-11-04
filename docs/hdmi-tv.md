@@ -56,11 +56,11 @@ sockets.
    The QR codes are generated there and only the SVGs are copied to the Pi, so
    the Wi-Fi PSK never appears in the Pi's process list or logs. If it is not
    on `PATH`, set `travel_lab_tv_qrencode_bin`.
-3. The `travel-tv` image is built by GitHub Actions and must be published and
-   public in GHCR (see the README); `just deploy` pulls it. The image bundles
-   `wtype` and `wlrctl`, so `just site` only needs the kiosk packages (Cage,
-   Firefox, PipeWire). The host role warns if the installed Cage lacks
-   virtual-input support.
+3. The `travel-tv` image is built by GitHub Actions and published publicly in
+   GHCR (see the README); `just deploy` pulls it. The image bundles `wtype` and
+   `wlrctl`, so `just site` only needs the kiosk packages (Cage, Firefox,
+   PipeWire). The host role warns if the installed Cage lacks virtual-input
+   support.
 4. The vault password file is `~/.vault_pass`; `ansible/ansible.cfg` points at
    it. The encrypted Wi-Fi values live in
    `ansible/host_vars/travel-lab/vault.yml`.

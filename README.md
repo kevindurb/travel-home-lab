@@ -185,9 +185,9 @@ nothing. See [docs/ansible-migration.md](docs/ansible-migration.md) for the
 caveat about `:latest` on the stateful services.
 
 The `travel-tv` image is rebuilt by GitHub Actions on every `main` push under
-`travel-tv/` and published as `:latest`. The Pi's auto-update timer picks it up.
-After the very first publish, set the GHCR package visibility to **Public** so
-the Pi can pull it anonymously.
+`travel-tv/` and published as `:latest`. The package is public, so the Pi pulls
+it anonymously and the auto-update timer picks it up. If you make the package
+private, run `podman login ghcr.io` on the Pi first.
 
 ## Tear down
 
