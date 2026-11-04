@@ -1,0 +1,6 @@
+[Unit]
+Description=Push Pi CPU temperature and under-voltage state to Gatus
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/pi-health

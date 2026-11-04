@@ -248,3 +248,14 @@ travel_lab_units:
   - kiwix.container
   - travel-tv.container
   - whoami.container
+
+# --- Pi health checks --------------------------------------------------------
+# A user timer samples the SoC temperature and the Pi's under-voltage alarm and
+# pushes two results to Gatus external endpoints (see pi-health.sh.j2). The
+# check fails at the Pi 4 soft-throttle temperature and while under-voltage is
+# active. 30s is a compromise between catching short power dips and keeping the
+# Gatus SQLite history small.
+travel_lab_pi_health_interval: 30s
+travel_lab_pi_health_temp_limit_c: 80
+# Not a secret: it only guards the Gatus push API against accidental posts.
+travel_lab_gatus_push_token: pi-health-loopback

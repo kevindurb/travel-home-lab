@@ -28,6 +28,20 @@
     state: directory
     mode: "0755"
 
+# The Pi health collector is a user timer, so both its binary and its units
+# live under the stack user's home.
+- name: Create the local bin directory
+  ansible.builtin.file:
+    path: "{{ travel_lab_home }}/.local/bin"
+    state: directory
+    mode: "0755"
+
+- name: Create the user systemd unit directory
+  ansible.builtin.file:
+    path: "{{ travel_lab_config_root }}/systemd/user"
+    state: directory
+    mode: "0755"
+
 # The travel-tv container bind-mounts the rendered page root, so it must exist
 # (and be user-owned) before Podman starts the container.
 - name: Create the Travel TV web root
@@ -55,6 +69,23 @@
   loop: "{{ travel_lab_units }}"
   notify: Reload the user systemd manager
   register: travel_lab_units_render
+
+- name: Install the Pi health collector
+  ansible.builtin.template:
+    src: pi-health.sh.j2
+    dest: "{{ travel_lab_home }}/.local/bin/pi-health"
+    mode: "0755"
+
+- name: Render the Pi health systemd units
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "{{ travel_lab_config_root }}/systemd/user/{{ item }}"
+    mode: "0644"
+  loop:
+    - pi-health.service
+    - pi-health.timer
+  notify: Reload the user systemd manager
+  register: travel_lab_pi_health_units_render
 
 - name: Generate the systemd units before starting anything
   ansible.builtin.meta: flush_handlers
@@ -161,6 +192,25 @@
   when: item.item.key not in travel_lab_changed_containers
   loop_control:
     label: "{{ item.item.key }}"
+  environment: "{{ travel_lab_user_env }}"
+
+# Start the collector after the stack so its first pushes find Gatus ready.
+- name: Enable and start the Pi health timer
+  ansible.builtin.systemd_service:
+    name: pi-health.timer
+    enabled: true
+    state: started
+    scope: user
+  environment: "{{ travel_lab_user_env }}"
+
+# An active timer keeps its old schedule after a unit change, so restart it
+# once Gatus is running with the new config.
+- name: Restart the Pi health timer when its unit changed
+  ansible.builtin.systemd_service:
+    name: pi-health.timer
+    state: restarted
+    scope: user
+  when: travel_lab_pi_health_units_render is changed
   environment: "{{ travel_lab_user_env }}"
 
 # --- ingress ----------------------------------------------------------------

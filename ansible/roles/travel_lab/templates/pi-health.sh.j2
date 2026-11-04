@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# Rendered by Ansible from ansible/roles/travel_lab/templates/pi-health.sh.j2.
+# Pushes the Pi's SoC temperature and under-voltage state to Gatus. Runs from a
+# user timer and only reads /sys, so it needs no privileges.
+set -euo pipefail
+
+GATUS_URL="http://127.0.0.1:{{ travel_lab_tailscale_services.gatus.local_port }}"
+GATUS_TOKEN="{{ travel_lab_gatus_push_token }}"
+TEMP_LIMIT_C="{{ travel_lab_pi_health_temp_limit_c }}"
+# Allow a one-off override for testing: TEMP_LIMIT=1 ~/.local/bin/pi-health.
+TEMP_LIMIT_C="${TEMP_LIMIT:-$TEMP_LIMIT_C}"
+
+push() {
+  local key="$1" success="$2" error="${3:-}"
+  curl --silent --show-error --fail --max-time 5 \
+    --request POST \
+    --header "Authorization: Bearer ${GATUS_TOKEN}" \
+    --get \
+    --data-urlencode "success=${success}" \
+    --data-urlencode "error=${error}" \
+    "${GATUS_URL}/api/v1/endpoints/${key}/external" >/dev/null
+}
+
+read_temp() {
+  local raw
+  if [[ -r /sys/class/thermal/thermal_zone0/temp ]]; then
+    read -r raw < /sys/class/thermal/thermal_zone0/temp
+    awk -v millidegrees="$raw" 'BEGIN { printf "%.1f", millidegrees / 1000 }'
+    return 0
+  fi
+  if command -v vcgencmd >/dev/null 2>&1; then
+    vcgencmd measure_temp | sed -nE "s/^temp=([0-9.]+).*/\1/p"
+    return 0
+  fi
+  return 1
+}
+
+read_throttled() {
+  if command -v vcgencmd >/dev/null 2>&1; then
+    vcgencmd get_throttled | sed -n 's/^throttled=//p'
+  fi
+}
+
+# Prints "active", "inactive" or "unknown". The kernel's raspberrypi-hwmon
+# driver exposes the current under-voltage alarm on the rpi_volt device; older
+# images only have vcgencmd get_throttled (bit 0).
+read_undervolt() {
+  local file name
+  for file in /sys/class/hwmon/hwmon*/in0_lcrit_alarm; do
+    [[ -r "$file" ]] || continue
+    name="$(cat "$(dirname "$file")/name" 2>/dev/null || true)"
+    if [[ "$name" == "rpi_volt" ]]; then
+      if [[ "$(cat "$file")" != "0" ]]; then
+        printf 'active'
+      else
+        printf 'inactive'
+      fi
+      return 0
+    fi
+  done
+  local throttled
+  throttled="$(read_throttled)"
+  if [[ -n "$throttled" ]]; then
+    if (( throttled & 0x1 )); then
+      printf 'active'
+    else
+      printf 'inactive'
+    fi
+    return 0
+  fi
+  printf 'unknown'
+}
+
+# --- thermal ----------------------------------------------------------------
+# Bit 2 is "currently throttled" and bit 3 is the soft temperature limit. A
+# temperature below the limit but with either flag set means the SoC is not
+# being adequately cooled.
+if temp="$(read_temp)" && [[ -n "$temp" ]]; then
+  throttled="$(read_throttled || true)"
+  if awk -v temp="$temp" -v limit="$TEMP_LIMIT_C" 'BEGIN { exit !(temp >= limit) }'; then
+    push monitors_pi-thermal false "CPU ${temp}C >= ${TEMP_LIMIT_C}C"
+  elif [[ -n "$throttled" ]] && (( (throttled & 0xC) != 0 )); then
+    push monitors_pi-thermal false "throttling active (get_throttled=${throttled})"
+  else
+    push monitors_pi-thermal true
+  fi
+else
+  push monitors_pi-thermal false "cannot read CPU temperature"
+fi
+
+# --- under-voltage ----------------------------------------------------------
+case "$(read_undervolt)" in
+  active)
+    push monitors_pi-undervolt false "under-voltage detected"
+    ;;
+  inactive)
+    push monitors_pi-undervolt true
+    ;;
+  *)
+    push monitors_pi-undervolt false "cannot read under-voltage state"
+    ;;
+esac

@@ -81,6 +81,8 @@ Travel TV service, starts normally. Connect the NVMe and re-run `just deploy`
 ~/.config/containers/systemd/           # 12 quadlet units: 1 network, 3 volumes, 8 containers
 ~/.config/gatus/config.yml
 ~/.config/homer/config.yml
+~/.config/systemd/user/pi-health.*      # temperature / under-voltage collector timer
+~/.local/bin/pi-health                  # collector pushed to Gatus
 ~/.config/travel-tv/www/                # rendered page, QR codes and remote
 ~/.local/share/travel-tv/firefox/       # persistent kiosk profile
 /etc/systemd/system/tv-kiosk.service    # HDMI kiosk (system unit)
@@ -127,6 +129,8 @@ just tv-logs
 just tv-remote-status
 just tv-remote-logs
 just tv-remote-health
+just pi-health
+just pi-health-logs
 just tv-test
 just vault-view
 ```
@@ -144,6 +148,20 @@ systemctl --user status travel-tv
 Quadlets autostart at boot via `[Install] WantedBy=default.target` plus
 `Linger=yes`; do **not** run `systemctl --user enable` (generated units reject
 it).
+
+## Pi health checks
+
+`pi-health.timer` runs every 30 seconds and pushes two results to Gatus:
+
+- `pi-thermal` — red at 80 °C, or while the Pi reports it is throttling or at
+  the soft temperature limit.
+- `pi-undervolt` — red while the Pi's under-voltage alarm is active.
+
+The collector reads `/sys` directly (`/sys/class/thermal` and the `rpi_volt`
+hwmon alarm), with `vcgencmd` as a fallback, so it needs no privileges. Gatus
+marks both checks unhealthy if no push arrives for five minutes, which also
+catches a dead timer. No alert providers are configured, so these are
+dashboard-only under the `monitors` group.
 
 ## ⚠️ Do not destroy the volumes
 

@@ -1,0 +1,10 @@
+[Unit]
+Description=Sample Pi CPU temperature and under-voltage state
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec={{ travel_lab_pi_health_interval }}
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

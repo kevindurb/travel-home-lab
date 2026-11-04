@@ -63,6 +63,13 @@ serves-json:
 logs unit:
   ssh -t travel-lab.beaver-cloud.ts.net 'journalctl --user -u {{ unit }} -f'
 
+# Pi CPU temperature / under-voltage collector status.
+pi-health:
+  ssh travel-lab.beaver-cloud.ts.net 'systemctl --user --no-pager status pi-health.timer; journalctl --user -u pi-health -n 20 --no-pager'
+
+pi-health-logs:
+  ssh -t travel-lab.beaver-cloud.ts.net 'journalctl --user -u pi-health -f'
+
 # Travel TV kiosk status and logs (it is a system unit, not a user quadlet).
 tv-status:
   ssh travel-lab.beaver-cloud.ts.net 'systemctl --no-pager status tv-kiosk'

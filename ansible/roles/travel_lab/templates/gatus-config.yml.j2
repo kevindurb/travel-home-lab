@@ -8,83 +8,98 @@ storage:
 endpoints:
   - name: google
     url: https://google.com
-    group: external
+    group: monitors
     conditions: ['[STATUS] == 200']
 
   - name: github
     url: https://github.com
-    group: external
+    group: monitors
     conditions: ['[STATUS] == 200']
 
   - name: firefox portal
     url: http://detectportal.firefox.com/success.txt
-    group: external
+    group: monitors
     conditions: ['[STATUS] == 200']
 
   - name: travel-router
     url: https://10.42.0.1
-    group: networking
+    group: monitors
     client: { insecure: true }
     conditions: ['[STATUS] == 200']
 
   - name: kiwix
     url: http://kiwix:8080
-    group: apps
+    group: services
     conditions: ['[STATUS] == 200']
 
   - name: jellyfin
     url: http://jellyfin:8096
-    group: apps
+    group: services
     conditions: ['[STATUS] == 200']
 
   - name: whoami
     url: http://whoami:80
-    group: apps
+    group: services
     conditions: ['[STATUS] == 200']
 
   - name: glances
     url: http://glances:61208
-    group: apps
+    group: services
     conditions: ['[STATUS] == 200']
 
   - name: dozzle
     url: http://dozzle:8080
-    group: apps
+    group: services
     conditions: ['[STATUS] == 200']
 
   - name: homer
     url: http://homer:8080
-    group: apps
+    group: services
     conditions: ['[STATUS] == 200']
 
   # Tailscale Services, reached through tailscaled (validates TLS + ingress).
   # The container resolves MagicDNS via the host's Tailscale resolver.
   - name: tailnet-kiwix
     url: https://{{ travel_lab_tailscale_services.kiwix.service }}.{{ travel_lab_tailnet_domain }}
-    group: tailnet
+    group: tailscale
     conditions: ['[STATUS] == 200']
 
   - name: tailnet-jellyfin
     url: https://{{ travel_lab_tailscale_services.jellyfin.service }}.{{ travel_lab_tailnet_domain }}
-    group: tailnet
+    group: tailscale
     conditions: ['[STATUS] == 200']
 
   - name: tailnet-whoami
     url: https://{{ travel_lab_tailscale_services.whoami.service }}.{{ travel_lab_tailnet_domain }}
-    group: tailnet
+    group: tailscale
     conditions: ['[STATUS] == 200']
 
   - name: tailnet-glances
     url: https://{{ travel_lab_tailscale_services.glances.service }}.{{ travel_lab_tailnet_domain }}
-    group: tailnet
+    group: tailscale
     conditions: ['[STATUS] == 200']
 
   - name: tailnet-dozzle
     url: https://{{ travel_lab_tailscale_services.dozzle.service }}.{{ travel_lab_tailnet_domain }}
-    group: tailnet
+    group: tailscale
     conditions: ['[STATUS] == 200']
 
   - name: tailnet-homer
     url: https://{{ travel_lab_tailscale_services.homer.service }}.{{ travel_lab_tailnet_domain }}
-    group: tailnet
+    group: tailscale
     conditions: ['[STATUS] == 200']
+
+# Push-based Pi health checks. `pi-health.timer` on the host posts to these;
+# the heartbeat turns them red if the collector or its timer stops.
+external-endpoints:
+  - name: pi-thermal
+    group: monitors
+    token: "{{ travel_lab_gatus_push_token }}"
+    heartbeat:
+      interval: 5m
+
+  - name: pi-undervolt
+    group: monitors
+    token: "{{ travel_lab_gatus_push_token }}"
+    heartbeat:
+      interval: 5m
