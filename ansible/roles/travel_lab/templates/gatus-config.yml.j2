@@ -94,6 +94,11 @@ endpoints:
     group: tailscale
     conditions: ['[STATUS] == 200']
 
+  - name: tailnet-moonlight
+    url: https://{{ travel_lab_tailscale_services.moonlight.service }}.{{ travel_lab_tailnet_domain }}
+    group: tailscale
+    conditions: ['[STATUS] == 200']
+
 # Push-based Pi health checks. `pi-health.timer` on the host posts to these;
 # the heartbeat turns them red if the collector or its timer stops.
 external-endpoints:

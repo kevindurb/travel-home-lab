@@ -29,6 +29,10 @@ services:
         subtitle: "Offline Wikipedia & more"
         icon: "fas fa-book"
         url: "https://{{ travel_lab_tailscale_services.kiwix.service }}.{{ travel_lab_tailnet_domain }}"
+      - name: "Moonlight"
+        subtitle: "Game streaming"
+        icon: "fas fa-gamepad"
+        url: "https://{{ travel_lab_tailscale_services.moonlight.service }}.{{ travel_lab_tailnet_domain }}"
 
   - name: "Ops"
     icon: "fas fa-heartbeat"

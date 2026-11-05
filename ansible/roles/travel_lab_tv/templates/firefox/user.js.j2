@@ -32,8 +32,8 @@ user_pref("media.autoplay.default", 0);
 // work. The pref is default-on in current Firefox, set here for older images.
 user_pref("media.webrtc.hw.h264.enabled", true);
 
-// The Games tile is http://127.0.0.1:18086 on purpose (a secure context without
-// `tailscale serve`). Keep HTTPS-Only Mode from rewriting it.
+// Keep HTTPS-Only Mode from rewriting the loopback fallback
+// (http://127.0.0.1:18086) if the Moonlight tile is switched back to it.
 user_pref("dom.security.https_only_mode", false);
 
 // Gamepad API for the launcher, Settings and the Bluetooth page.

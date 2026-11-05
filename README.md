@@ -15,9 +15,9 @@ form — the huJSON config file cannot request an HTTPS listener). There is no
 Caddy, no internal CA, and nothing on `.lan`. See
 [docs/tailscale-serve-migration.md](docs/tailscale-serve-migration.md).
 
-Moonlight is the one exception: its UI stays on loopback (the kiosk loads it
-from `127.0.0.1`, a secure context) and its WebRTC UDP media range is also
-published on the tailnet address. See [docs/moonlight.md](docs/moonlight.md).
+Moonlight is a normal Service too; the one exception is its **UDP** media
+range, which `tailscale serve` cannot proxy and is published on the tailnet
+address instead. See [docs/moonlight.md](docs/moonlight.md).
 
 The stack ran under `podman compose`, then under hand-written quadlets installed
 by a `Makefile`. Both are retired; see
@@ -110,7 +110,7 @@ connecting controllers, and an **About** page. A paired controller drives every
 first-party page (D-pad/stick, A, B, Start, LB/RB) and the Moonlight stream owns
 it while a game is open. The **Games** tile streams from a Sunshine host (the
 gaming PC or the Steam Deck) through `moonlight-web-stream`; setup, H.264/1080p
-settings and the loopback/WebRTC network details are in
+settings and the network details are in
 [docs/moonlight.md](docs/moonlight.md).
 
 A phone remote at `https://travel-tv.<tailnet>/remote.html` controls the kiosk
@@ -122,9 +122,9 @@ The launcher and remote are served by the `travel-tv` Go container; there is no
 nginx or Python user service. The image bundles `wtype`/`wlrctl` and controls
 volume through `pipewire-pulse`.
 
-Prerequisites: create `svc:travel-tv` in the Tailscale admin console and set the
-Wi-Fi vault values with `just vault-edit`. Full details, one-time
-Jellyfin/Netflix setup, audio notes and troubleshooting are in
+Prerequisites: create `svc:travel-tv` and `svc:travel-moonlight` in the Tailscale
+admin console and set the Wi-Fi vault values with `just vault-edit`. Full
+details, one-time Jellyfin/Netflix setup, audio notes and troubleshooting are in
 [docs/hdmi-tv.md](docs/hdmi-tv.md); game streaming is in
 [docs/moonlight.md](docs/moonlight.md).
 

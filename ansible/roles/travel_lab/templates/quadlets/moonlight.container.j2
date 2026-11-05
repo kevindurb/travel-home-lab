@@ -9,14 +9,12 @@ Network={{ travel_lab_network }}.network
 # is owned by the stack user. Run as root inside the rootless container so the
 # mapped host uid can write data.json; the kiosk's other quadlets do the same.
 User=0
-# Loopback only. The kiosk loads the UI from http://127.0.0.1:<port>, which is
-# a secure context, so it does not need `tailscale serve` (whose HTTP proxy has
-# open WebSocket bugs) or a certificate.
+# Loopback only: tailscaled proxies travel-moonlight.<tailnet> here.
 PublishPort=127.0.0.1:{{ travel_lab_moonlight_port }}:{{ travel_lab_moonlight_listen_port }}
-# WebRTC media is UDP. Publish it on loopback (for the kiosk) and on the tailnet
-# address (for a tailnet laptop, if the UI is ever exposed to them). The server
-# advertises the tailnet address as its ICE candidate; it also advertises a
-# loopback candidate by default. Keep the range in step with WEBRTC_PORT_RANGE.
+# WebRTC media is UDP and `tailscale serve` proxies TCP only. Publish it on
+# loopback (for the kiosk) and on the tailnet address (for other tailnet
+# clients). The server advertises the tailnet address as its ICE candidate and
+# a loopback candidate by default. Keep the range in step with WEBRTC_PORT_RANGE.
 PublishPort=127.0.0.1:{{ travel_lab_moonlight_webrtc_port_min }}-{{ travel_lab_moonlight_webrtc_port_max }}:{{ travel_lab_moonlight_webrtc_port_min }}-{{ travel_lab_moonlight_webrtc_port_max }}/udp
 PublishPort={{ travel_lab_tailnet_ip }}:{{ travel_lab_moonlight_webrtc_port_min }}-{{ travel_lab_moonlight_webrtc_port_max }}:{{ travel_lab_moonlight_webrtc_port_min }}-{{ travel_lab_moonlight_webrtc_port_max }}/udp
 # users, host pairings and settings (data.json), plus the optional

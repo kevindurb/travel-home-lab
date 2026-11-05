@@ -53,10 +53,9 @@ sockets, and the system D-Bus socket so it can pair controllers.
 
 ## 2. Before the first deploy
 
-1. Create `svc:travel-tv` in the Tailscale admin console (same as the other
-   services). The deploy will fail to publish it otherwise. Moonlight needs no
-   Service: the kiosk loads it from loopback (see
-   [moonlight.md](moonlight.md)).
+1. Create `svc:travel-tv` and `svc:travel-moonlight` in the Tailscale admin
+   console (same as the other services), and approve the `travel-lab` proxy for
+   each. The names do not resolve until the proxies are approved.
 2. Nothing else is needed on the workstation: the launcher pages, CSS and JS
    are embedded in the `travel-tv` image, and the Go app renders both QR codes
    at startup. Ansible only writes the page data to
@@ -118,7 +117,7 @@ travel_lab_tv_tiles:
   - { label: Radio, icon: radio, accent: "#E76F51", url: "radio.html" }
   - { label: PBS Kids, icon: pbskids, accent: "#2638C4", url: "https://pbskids.org/videos/" }
   - { label: Remote, icon: phone, accent: "#5CC8FF", action: remote, url: "remote-qr.html" }
-  - { label: Games, icon: gamepad, accent: "#7B5CFF", url: "http://127.0.0.1:18086" }
+  - { label: Games, icon: gamepad, accent: "#7B5CFF", url: "https://travel-moonlight...." }
 ```
 
 The grid is **4 columns × 3 rows** at 1080p:
@@ -163,12 +162,12 @@ secrets), independently of the Wi-Fi QR.
 
 ### Games tile
 
-Selecting Games opens `http://127.0.0.1:18086`, the `moonlight-web-stream`
-bridge that relays a Sunshine host to Firefox over WebRTC. It is the one app
-not fronted by `tailscale serve` (see [moonlight.md](moonlight.md) for why), so
-the tile is a loopback URL rather than a `travel-*.<tailnet>` name. The Pi 4
-decodes H.264 only, so the host is pinned to H.264; setup, pairing and the
-network details are in [moonlight.md](moonlight.md).
+Selecting Games opens `https://travel-moonlight.<tailnet>`, the
+`moonlight-web-stream` bridge that relays a Sunshine host to Firefox over
+WebRTC. It is a normal Tailscale Service, so the page has a secure context for
+the Gamepad and pointer-lock APIs. The Pi 4 decodes H.264 only, so the host is
+pinned to H.264; setup, pairing, the WebSocket caveat and the loopback fallback
+are in [moonlight.md](moonlight.md).
 
 ### Weather and forecast
 

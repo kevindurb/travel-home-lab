@@ -72,14 +72,16 @@ travel_lab_tv_firefox_bin: firefox
 
 # --- Moonlight (game streaming) --------------------------------------------
 # moonlight-web-stream (Rust) runs on the Pi and relays a Sunshine host to the
-# kiosk's Firefox over WebRTC. The kiosk loads it from the loopback publish:
-# 127.0.0.1 counts as a secure context, so the Gamepad, pointer-lock and
-# WebSocket APIs all work, and the request never goes through `tailscale serve`
-# (whose HTTP proxy has open WebSocket bugs: tailscale#20882, #18827). The
-# WebRTC media is UDP, so those ports are published on the tailnet address as
-# well and advertised as the ICE candidate. See docs/moonlight.md.
+# kiosk's Firefox over WebRTC. Like every other app it is fronted by
+# svc:travel-moonlight, which also gives the page a secure context (the
+# Gamepad and pointer-lock APIs need one). `tailscale serve` has open WebSocket
+# bugs (tailscale#20882, #18827): if the stream's signalling socket misbehaves,
+# point travel_lab_moonlight_url back at
+# http://127.0.0.1:{{ travel_lab_moonlight_port }} — the loopback publish stays.
+# The WebRTC media is UDP, so those ports are published on the tailnet address
+# and advertised as the ICE candidate. See docs/moonlight.md.
 travel_lab_moonlight_port: 18086
-travel_lab_moonlight_url: "http://127.0.0.1:{{ travel_lab_moonlight_port }}"
+travel_lab_moonlight_url: "https://{{ travel_lab_tailscale_services.moonlight.service }}.{{ travel_lab_tailnet_domain }}"
 travel_lab_moonlight_config: "{{ travel_lab_config_root }}/moonlight"
 # Port the bridge listens on inside the container.
 travel_lab_moonlight_listen_port: 8080
@@ -224,6 +226,7 @@ travel_lab_tailscale_services:
   homer:     { service: travel-home,      local_port: 18083 }
   whoami:    { service: travel-whoami,    local_port: 18084 }
   tv:        { service: travel-tv,        local_port: 18085 }
+  moonlight: { service: travel-moonlight, local_port: 18086 }
 
 # --- images -----------------------------------------------------------------
 # Pinned to :latest to match the stack's long-standing behaviour. To pin, just
